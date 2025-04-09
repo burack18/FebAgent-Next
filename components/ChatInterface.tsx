@@ -3,6 +3,7 @@
 import React, { useState, FormEvent, ChangeEvent, useRef, useEffect } from 'react';
 import Sidebar from './Sidebar';
 import { AskRequest, AskResponse } from '@/types/chat'; // Import chat types
+import { useAuth } from '@/context/AuthContext'; // Import useAuth
 
 // Use environment variable for API base URL
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -22,6 +23,7 @@ const ChatInterface: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const messageEndRef = useRef<HTMLDivElement>(null); // Ref for scrolling
   const nextId = useRef(0); // Ref for generating unique message IDs
+  const { logout } = useAuth(); // Get logout function
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -107,9 +109,19 @@ const ChatInterface: React.FC = () => {
       <Sidebar />
       <div className="flex-1 flex flex-col items-center justify-center p-4 overflow-hidden">
         {/* Chat box */} 
-        <div className="flex flex-col w-full max-w-3xl h-full max-h-[calc(100vh-4rem)] bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700">
+        <div className="relative flex flex-col w-full max-w-3xl h-full max-h-[calc(100vh-4rem)] bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700">
+          
+          {/* Logout Button (Example Placement: Top Right) */}
+          <button 
+            onClick={logout}
+            className="absolute top-2 right-2 z-10 px-3 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 dark:focus:ring-offset-gray-800 cursor-pointer"
+            title="Logout"
+          >
+            Logout
+          </button>
+
           {/* Message display area */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 pt-10"> {/* Added pt-10 for button space */}
             {messages.map((msg) => (
               <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
                 <div className={`max-w-lg px-4 py-2 rounded-lg shadow ${msg.isLoading ? 'animate-pulse text-gray-500' : ''} ${
