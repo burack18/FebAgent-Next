@@ -28,12 +28,11 @@ const LoginPage: React.FC = () => {
     }
 
     try {
-      // Pass credentials to login function if needed by your actual API
-      await login(/* { username, password } */);
-      // Login function in context now handles redirect on success (or useEffect does)
-      // router.push('/'); // Redirect handled by useEffect
+      // Pass credentials object to login
+      await login({ username, password }); 
+      // Redirect is handled by useEffect after isAuthenticated updates
     } catch (err) {
-      console.error("Login failed:", err);
+      console.error("Login failed on page:", err);
       setError(err instanceof Error ? err.message : 'Invalid credentials or server error.');
     }
   };
