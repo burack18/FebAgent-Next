@@ -47,6 +47,7 @@ const Sidebar: React.FC = () => {
       setIsLoading(false);
       return;
     }
+     
     console.log('Fetching documents...'); // Log when fetching starts
     setIsLoading(true);
     setError(null);
