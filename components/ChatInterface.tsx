@@ -8,7 +8,7 @@ import UserMenu from './UserMenu'; // Import UserMenu
 // Use environment variable for API base URL
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 const SESSION_KEY = "b9d1f620-23c7-4c6e-8d8b-90e2f78c4b44"; // Hardcoded session key for now
-
+ 
 interface Message {
   id: number; // Add unique id for messages
   sender: 'user' | 'ai';
