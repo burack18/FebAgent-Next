@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { ApiDocument } from '@/types/document'; // Uses updated type
 import UploadModal from './UploadModal'; // Import the modal component
 import ConfirmModal from './ConfirmModal'; // Import ConfirmModal
+import { fetchWithAuth } from '@/utils/fetchWithAuth'; // Import the wrapper
 
 // Simple SVG Trash Icon Component
 const TrashIcon: React.FC<{ className?: string }> = ({ className = "w-4 h-4" }) => (
@@ -52,7 +53,8 @@ const Sidebar: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${API_URL}/api/v1/documents`);
+      // Use fetchWithAuth for GET
+      const response = await fetchWithAuth(`${API_URL}/api/v1/documents`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -106,7 +108,8 @@ const Sidebar: React.FC = () => {
     console.log(`Confirmed deletion for document ID: ${confirmModalState.docIdToDelete}`);
 
     try {
-      const response = await fetch(`${API_URL}/api/v1/documents/${encodeURIComponent(confirmModalState.docIdToDelete)}`, {
+      // Use fetchWithAuth for DELETE
+      const response = await fetchWithAuth(`${API_URL}/api/v1/documents/${encodeURIComponent(confirmModalState.docIdToDelete)}`, {
         method: 'DELETE',
       });
 
@@ -149,9 +152,10 @@ const Sidebar: React.FC = () => {
     formData.append(file.name, file); // Use filename as key
 
     try {
-      const response = await fetch(`${API_URL}/api/v1/documents/loadDocuments`, {
+      // Use fetchWithAuth for POST with FormData
+      const response = await fetchWithAuth(`${API_URL}/api/v1/documents/loadDocuments`, {
         method: 'POST',
-        body: formData,
+        body: formData, // Pass FormData directly
       });
 
       if (!response.ok) {

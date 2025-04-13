@@ -14,10 +14,12 @@ interface AuthContextType {
   login: (credentials: Credentials) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
+  getToken: () => string | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
+const TOKEN_STORAGE_KEY = 'authToken';
 console.log('API_URL= ', API_URL); 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -25,19 +27,27 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const storedAuth = sessionStorage.getItem('isAuthenticated');
+    const storedToken = localStorage.getItem(TOKEN_STORAGE_KEY);
     const storedUser = sessionStorage.getItem('currentUser');
-    console.log('AuthProvider useEffect: storedAuth=', storedAuth, 'storedUser=', storedUser);
-    
-    // *** Log the environment variable as seen by the client ***
+    console.log('AuthProvider useEffect: storedToken=', storedToken, 'storedUser=', storedUser);
     console.log('AuthProvider useEffect: NEXT_PUBLIC_API_URL=', process.env.NEXT_PUBLIC_API_URL);
     
-    if (storedAuth === 'true') {
+    if (storedToken) {
       setIsAuthenticated(true);
       setCurrentUser(storedUser);
+    } else {
+      setIsAuthenticated(false);
+      setCurrentUser(null);
     }
     setIsLoading(false);
   }, []);
+
+  const getToken = (): string | null => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem(TOKEN_STORAGE_KEY);
+    }
+    return null;
+  };
 
   const login = async (credentials: Credentials) => {
     if (!API_URL) {
@@ -64,15 +74,28 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         throw new Error(errorText);
       }
 
-      const username = credentials.username || "testuser";
+      const data = await response.json();
+      console.log("Login successful, received data:", data);
+
+      if (!data.token) {
+        console.error("Login response missing token!");
+        throw new Error("Login successful, but token was not provided by the server.");
+      }
       
-      console.log(`Login successful for ${username}!`);
+      const username = data.username || credentials.username || "user";
+      
       setIsAuthenticated(true);
       setCurrentUser(username);
+      localStorage.setItem(TOKEN_STORAGE_KEY, data.token);
       sessionStorage.setItem('isAuthenticated', 'true');
       sessionStorage.setItem('currentUser', username);
       
     } catch (error) {
+        setIsAuthenticated(false);
+        setCurrentUser(null);
+        localStorage.removeItem(TOKEN_STORAGE_KEY);
+        sessionStorage.removeItem('isAuthenticated');
+        sessionStorage.removeItem('currentUser');
         console.error('Login process error:', error);
         throw error; 
     } finally {
@@ -84,13 +107,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setIsLoading(true);
     setIsAuthenticated(false);
     setCurrentUser(null);
+    localStorage.removeItem(TOKEN_STORAGE_KEY);
     sessionStorage.removeItem('isAuthenticated');
     sessionStorage.removeItem('currentUser');
     setIsLoading(false);
   };
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, currentUser, login, logout, isLoading }}>
+    <AuthContext.Provider value={{ isAuthenticated, currentUser, login, logout, isLoading, getToken }}>
       {children}
     </AuthContext.Provider>
   );

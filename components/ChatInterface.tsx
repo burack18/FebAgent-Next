@@ -4,6 +4,7 @@ import React, { useState, FormEvent, ChangeEvent, useRef, useEffect } from 'reac
 import Sidebar from './Sidebar';
 import { AskRequest, AskResponse } from '@/types/chat'; // Import chat types
 import UserMenu from './UserMenu'; // Import UserMenu
+import { fetchWithAuth } from '@/utils/fetchWithAuth'; // Import the wrapper
 
 // Use environment variable for API base URL
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -57,13 +58,14 @@ const ChatInterface: React.FC = () => {
         sessionKey: SESSION_KEY,
       };
 
-      const response = await fetch(`${API_URL}/api/v1/agents/ask`, {
+      // Use fetchWithAuth for POST request
+      const response = await fetchWithAuth(`${API_URL}/api/v1/agents/ask`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'text/event-stream' // Important: Tell the server we want SSE
+          // fetchWithAuth sets Content-Type: application/json by default
+          'Accept': 'text/event-stream' // Still need this for SSE
         },
-        body: JSON.stringify(requestBody),
+        body: requestBody, // Pass the object, fetchWithAuth handles stringify
       });
 
       if (!response.ok) {
@@ -71,7 +73,6 @@ const ChatInterface: React.FC = () => {
         throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
       }
 
-      // --- Handle Server-Sent Events --- 
       if (!response.body) {
           throw new Error("Response body is null");
       }
@@ -115,7 +116,6 @@ const ChatInterface: React.FC = () => {
               }
           }
       }
-      // --- End SSE Handling --- 
 
     } catch (err) {
       console.error("Failed to send message or process stream:", err);
