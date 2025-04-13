@@ -59,8 +59,8 @@ const Sidebar: React.FC = () => {
       console.log('Raw data received from API:', data);
       if (!Array.isArray(data)) {
         throw new Error('Expected an array of documents');
-      }
-      // Sort by documentName (camelCase)
+      } 
+      // Sor t by documentName (camelCase)
       const sortedData = data.sort((a, b) => {
         const nameA = a.documentName || ''; // Use camelCase
         const nameB = b.documentName || ''; // Use camelCase
