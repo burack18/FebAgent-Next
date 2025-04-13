@@ -228,7 +228,7 @@ const ChatInterface: React.FC = () => {
                                     msg.sender === 'user'
                                         ? 'bg-blue-500 text-white'
                                         : 'bg-gray-300 dark:bg-gray-600 text-gray-900 dark:text-white'
-                                } break-words whitespace-pre-wrap`}>
+                                } break-words`}>
                                     {/* Restoring ReactMarkdown, NO prose class on wrapper */}
                                     <div> {/* Simple wrapper div, no prose */}
                                         <ReactMarkdown 
