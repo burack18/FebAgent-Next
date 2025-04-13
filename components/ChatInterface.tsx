@@ -79,6 +79,8 @@ const ChatInterface: React.FC = () => {
 
       const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
       let accumulatedText = '';
+      let isFirstChunk = true; // Flag for first non-empty data chunk
+
       // Remove loading state for the placeholder message initially
       setMessages(prevMessages =>
         prevMessages.map(msg =>
@@ -86,7 +88,6 @@ const ChatInterface: React.FC = () => {
         )
       );
 
-      // eslint-disable-next-line no-constant-condition
       while (true) { 
           const { value, done } = await reader.read();
           if (done) {
@@ -94,16 +95,20 @@ const ChatInterface: React.FC = () => {
               break; // Exit loop when stream is done
           }
 
-          // Process the received chunk(s)
-          // SSE messages are separated by double newlines "\n\n"
           const lines = value.split('\n\n');
           for (const line of lines) {
               if (line.startsWith('data:')) {
-                  // Remove .trim() to preserve potential leading/trailing spaces in chunks
-                  const dataPart = line.substring(5); 
-                  // We still check if dataPart is truthy after removing prefix,
-                  // as empty 'data:' lines might occur.
-                  if (dataPart) { 
+                  let dataPart = line.substring(5); // Get content after "data: "
+                  
+                  // Trim leading space ONLY for the very first non-empty chunk
+                  if (isFirstChunk && dataPart.length > 0) {
+                      dataPart = dataPart.trimStart(); 
+                      if(dataPart.length > 0) { // Check again after trimStart
+                          isFirstChunk = false; // Only trim the first one
+                      }
+                  }
+                  
+                  if (dataPart) { // Append if there's content
                     accumulatedText += dataPart;
                     setMessages(prevMessages =>
                         prevMessages.map(msg =>
@@ -157,11 +162,12 @@ const ChatInterface: React.FC = () => {
                 <div className="flex-1 overflow-y-auto p-4 space-y-4">
                     {messages.map((msg) => (
                         <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                            <div className={`max-w-lg px-4 py-2 rounded-lg shadow ${msg.isLoading ? 'animate-pulse text-gray-500' : ''} ${
+                           {/* Message Bubble */}
+                           <div className={`max-w-lg px-4 py-2 rounded-lg shadow ${msg.isLoading ? 'animate-pulse text-gray-500' : ''} ${ 
                                 msg.sender === 'user'
                                     ? 'bg-blue-500 text-white'
                                     : 'bg-gray-300 dark:bg-gray-600 text-gray-900 dark:text-white'
-                            } whitespace-pre-wrap break-words`}>
+                            } break-words`}>
                             {msg.text}
                             </div>
                         </div>
