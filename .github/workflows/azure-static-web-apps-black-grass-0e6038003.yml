@@ -33,7 +33,7 @@ jobs:
           output_location: "" # Built app content directory - optional
           ###### End of Repository/Build Configurations ######
         env:
-          NEXT_PUBLIC_API_URL: ${{ secrets.AZURE_NEXT_PUBLIC_API_URL }} # Pass the secret to the build
+          NEXT_PUBLIC_API_URL: https://feb-agent-fcgfhyeza0c7hdak.northeurope-01.azurewebsites.net # Pass the secret to the build
 
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
