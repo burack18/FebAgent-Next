@@ -1,10 +1,12 @@
 'use client';
 
-import React, { useState, FormEvent, ChangeEvent, useRef, useEffect } from 'react';
+import React, { useState, FormEvent, ChangeEvent, useRef, useEffect, useCallback } from 'react';
 import Sidebar from './Sidebar';
 import { AskRequest, AskResponse } from '@/types/chat'; // Import chat types
 import UserMenu from './UserMenu'; // Import UserMenu
 import { fetchWithAuth } from '@/utils/fetchWithAuth'; // Import the wrapper
+import ReactMarkdown from 'react-markdown'; // Ensure this is imported
+import remarkGfm from 'remark-gfm'; // Ensure this is imported
 
 // Use environment variable for API base URL
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -24,15 +26,44 @@ const ChatInterface: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const messageEndRef = useRef<HTMLDivElement>(null); // Ref for scrolling
   const nextId = useRef(0); // Ref for generating unique message IDs
+  // State for the ID of the AI message currently being streamed
+  const [activeAiMessageId, setActiveAiMessageId] = useState<number | null>(null); 
+  // State for the text currently being displayed for the streaming message
+  const [streamingAiText, setStreamingAiText] = useState<string>(''); 
+  const accumulatedTextRef = useRef('');
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const displayedLengthRef = useRef(0); // Track visually displayed length
 
   // Scroll to bottom when messages change
   useEffect(() => {
     messageEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // Top-level useEffect for cleaning up the animation interval on unmount
+  useEffect(() => {
+    // Return a cleanup function
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        console.log('Animation interval cleared on unmount');
+      }
+    };
+  }, []); // Empty dependency array ensures this runs only on mount and unmount
+
   const handleInputChange = (event: ChangeEvent<HTMLInputElement>) => {
     setInputValue(event.target.value);
   };
+
+  // Function to update a specific message in the main list (memoized)
+  const updateMessage = useCallback((messageId: number, newText: string, isLoading = false) => {
+      setMessages(prevMessages =>
+          prevMessages.map(msg =>
+              msg.id === messageId
+                  ? { ...msg, text: newText, isLoading: isLoading }
+                  : msg
+          )
+      );
+  }, []); // Empty dependency array, setMessages is stable
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -41,101 +72,123 @@ const ChatInterface: React.FC = () => {
 
     setIsSending(true);
     setError(null);
+    // Clear previous streaming state before starting new request
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    accumulatedTextRef.current = '';
+    displayedLengthRef.current = 0; // Reset displayed length
+    setStreamingAiText('');
+    setActiveAiMessageId(null);
 
     const userMessageId = nextId.current++;
     const newUserMessage: Message = { id: userMessageId, sender: 'user', text: trimmedInput };
 
-    // Add user message and a *placeholder* for the AI response
-    const aiResponseMessageId = nextId.current++;
-    const aiPlaceholderMessage: Message = { id: aiResponseMessageId, sender: 'ai', text: '', isLoading: true }; // Start with empty text
+    // Get ID for the *next* AI message placeholder
+    const currentAiMessageId = nextId.current++; 
+    const aiPlaceholderMessage: Message = { id: currentAiMessageId, sender: 'ai', text: '', isLoading: true }; 
 
     setMessages(prevMessages => [...prevMessages, newUserMessage, aiPlaceholderMessage]);
     setInputValue('');
+    
+    // Set this as the active streaming message ID
+    setActiveAiMessageId(currentAiMessageId); 
 
     try {
-      const requestBody: AskRequest = {
-        question: trimmedInput,
-        sessionKey: SESSION_KEY,
-      };
+      const requestBody: AskRequest = { question: trimmedInput, sessionKey: SESSION_KEY };
 
-      // Use fetchWithAuth for POST request
       const response = await fetchWithAuth(`${API_URL}/api/v1/agents/ask`, {
         method: 'POST',
-        headers: {
-          // fetchWithAuth sets Content-Type: application/json by default
-          'Accept': 'text/event-stream' // Still need this for SSE
-        },
-        body: requestBody, // Pass the object, fetchWithAuth handles stringify
+        headers: { 'Accept': 'text/event-stream' },
+        body: requestBody,
       });
 
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
       }
-
-      if (!response.body) {
-          throw new Error("Response body is null");
-      }
+      if (!response.body) { throw new Error("Response body is null"); }
 
       const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
-      let accumulatedText = '';
-      let isFirstChunk = true; // Flag for first non-empty data chunk
+      let isFirstChunk = true;
+      updateMessage(currentAiMessageId, '', false); // Remove loading state
 
-      // Remove loading state for the placeholder message initially
-      setMessages(prevMessages =>
-        prevMessages.map(msg =>
-            msg.id === aiResponseMessageId ? { ...msg, isLoading: false } : msg
-        )
-      );
+      // --- Smoother Character Animation Logic --- 
+      const animationInterval = 50; // Update UI faster (e.g., every 50ms)
+      const charsPerInterval = 3; // Render N chars per interval
+      // Clear any *existing* interval before starting a new one
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      
+      intervalRef.current = setInterval(() => {
+        // Check if there's new text accumulated that hasn't been displayed
+        if (displayedLengthRef.current < accumulatedTextRef.current.length) {
+          const nextCharIndex = displayedLengthRef.current;
+          const charsToAdd = Math.min(
+            charsPerInterval,
+            accumulatedTextRef.current.length - displayedLengthRef.current
+          );
+          const nextTextChunk = accumulatedTextRef.current.substring(nextCharIndex, nextCharIndex + charsToAdd);
+          
+          setStreamingAiText((prev) => prev + nextTextChunk);
+          displayedLengthRef.current += charsToAdd;
+        } else {
+          // Optional: If buffer caught up, could temporarily slow down interval?
+          // For now, it just checks again quickly.
+        }
+      }, animationInterval);
+      // --- End Animation Logic --- 
 
       while (true) { 
           const { value, done } = await reader.read();
-          if (done) {
-              console.log('Stream finished.');
-              break; // Exit loop when stream is done
-          }
-
-          const lines = value.split('\n\n');
-          for (const line of lines) {
-              if (line.startsWith('data:')) {
-                  let dataPart = line.substring(5); // Get content after "data: "
-                  
-                  // Trim leading space ONLY for the very first non-empty chunk
-                  if (isFirstChunk && dataPart.length > 0) {
-                      dataPart = dataPart.trimStart(); 
-                      if(dataPart.length > 0) { // Check again after trimStart
-                          isFirstChunk = false; // Only trim the first one
+          
+          // Append received data to the ref (doesn't trigger render)
+          if (value) {
+              const lines = value.split('\n\n');
+              for (const line of lines) {
+                  if (line.startsWith('data:')) {
+                      let dataPart = line.substring(5);
+                      if (isFirstChunk && dataPart.length > 0) {
+                          dataPart = dataPart.trimStart();
+                          if (dataPart.length > 0) { isFirstChunk = false; }
+                      }
+                      if (dataPart) {
+                          accumulatedTextRef.current += dataPart;
                       }
                   }
-                  
-                  if (dataPart) { // Append if there's content
-                    accumulatedText += dataPart;
-                    setMessages(prevMessages =>
-                        prevMessages.map(msg =>
-                            msg.id === aiResponseMessageId
-                                ? { ...msg, text: accumulatedText }
-                                : msg
-                        )
-                    );
-                  }
               }
+          }
+          
+          if (done) {
+              console.log('Stream finished.');
+              // Ensure interval finishes rendering remaining text
+              const finalCheckInterval = setInterval(() => {
+                  if (displayedLengthRef.current >= accumulatedTextRef.current.length) {
+                      clearInterval(finalCheckInterval);
+                      if (intervalRef.current) clearInterval(intervalRef.current); // Clear main interval
+                      intervalRef.current = null; // Set ref to null after clearing
+                      updateMessage(currentAiMessageId, accumulatedTextRef.current, false); 
+                      setActiveAiMessageId(null);
+                      console.log('Animation complete.');
+                  }
+              }, animationInterval / 2);
+              break; // Exit the reading loop
           }
       }
 
     } catch (err) {
-      console.error("Failed to send message or process stream:", err);
-      const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
-      setError(`Failed to get response: ${errorMessage}`);
-      // Update the placeholder message to show the error
-       setMessages(prevMessages =>
-        prevMessages.map(msg =>
-          msg.id === aiResponseMessageId
-            ? { ...msg, text: `Error: ${errorMessage.substring(0, 150)}...`, isLoading: false }
-            : msg
-        )
-      );
+      if (intervalRef.current) clearInterval(intervalRef.current); 
+      intervalRef.current = null; // Set ref to null after clearing
+      console.error("Stream error:", err);
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      setError(`Response error: ${errorMessage}`);
+      // Update the specific message that failed
+      updateMessage(currentAiMessageId, `Error: ${errorMessage.substring(0, 150)}...`, false); 
+      setActiveAiMessageId(null); // Stop highlighting as active
     } finally {
       setIsSending(false);
+      // --- REMOVED INVALID useEffect CALL FROM HERE --- 
+      // We still need to potentially clear the interval if the try block 
+      // finishes but the 'done' condition wasn't met yet, although the 
+      // finalCheckInterval logic should handle most cases.
+      // The top-level useEffect handles unmount cleanup.
     }
   };
 
@@ -160,18 +213,34 @@ const ChatInterface: React.FC = () => {
                 
                 {/* Message display area - Removed pt-10 */}
                 <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                    {messages.map((msg) => (
-                        <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                           {/* Message Bubble */}
-                           <div className={`max-w-lg px-4 py-2 rounded-lg shadow ${msg.isLoading ? 'animate-pulse text-gray-500' : ''} ${ 
-                                msg.sender === 'user'
-                                    ? 'bg-blue-500 text-white'
-                                    : 'bg-gray-300 dark:bg-gray-600 text-gray-900 dark:text-white'
-                            } break-words`}>
-                            {msg.text}
+                    {messages.map((msg) => {
+                        // Log the text being passed to ReactMarkdown
+                        const textToRender = (msg.sender === 'ai' && msg.id === activeAiMessageId) 
+                                            ? streamingAiText 
+                                            : msg.text;
+                        if (msg.sender === 'ai') { // Only log AI messages
+                            console.log(`Rendering AI Msg ID ${msg.id}:`, JSON.stringify(textToRender));
+                        }
+                        
+                        return (
+                            <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                <div className={`max-w-lg px-4 py-2 rounded-lg shadow ${msg.isLoading ? 'animate-pulse' : ''} ${ 
+                                    msg.sender === 'user'
+                                        ? 'bg-blue-500 text-white'
+                                        : 'bg-gray-300 dark:bg-gray-600 text-gray-900 dark:text-white'
+                                } break-words whitespace-pre-wrap`}>
+                                    {/* Restoring ReactMarkdown, NO prose class on wrapper */}
+                                    <div> {/* Simple wrapper div, no prose */}
+                                        <ReactMarkdown 
+                                            remarkPlugins={[remarkGfm]} 
+                                        >
+                                            {textToRender}
+                                        </ReactMarkdown>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                    ))}
+                        );
+                    })}
                     {/* Error Display */} 
                     {error && (
                         <div className="flex justify-start">
