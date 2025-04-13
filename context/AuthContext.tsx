@@ -28,6 +28,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const storedAuth = sessionStorage.getItem('isAuthenticated');
     const storedUser = sessionStorage.getItem('currentUser');
     console.log('AuthProvider useEffect: storedAuth=', storedAuth, 'storedUser=', storedUser);
+    
+    // *** Log the environment variable as seen by the client ***
+    console.log('AuthProvider useEffect: NEXT_PUBLIC_API_URL=', process.env.NEXT_PUBLIC_API_URL);
+    
     if (storedAuth === 'true') {
       setIsAuthenticated(true);
       setCurrentUser(storedUser);
