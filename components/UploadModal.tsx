@@ -25,11 +25,15 @@ const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onFileUpload
     setError(null);
     if (event.target.files && event.target.files[0]) {
       const file = event.target.files[0];
-      // Basic validation for Word documents (can be more robust)
-      if (file.type === 'application/msword' || file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+      // Updated validation for Word OR PDF documents
+      if (
+        file.type === 'application/msword' ||
+        file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+        file.type === 'application/pdf'
+      ) {
         setSelectedFile(file);
       } else {
-        setError('Please select a Word document (.doc, .docx).');
+        setError('Please select a Word (.doc, .docx) or PDF (.pdf) document.'); // Updated error message
         setSelectedFile(null);
         if (fileInputRef.current) {
           fileInputRef.current.value = ""; // Reset file input
@@ -103,17 +107,17 @@ const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onFileUpload
                 <span className="font-medium text-gray-600 dark:text-gray-400">
                   {selectedFile 
                     ? <span className="text-green-600 dark:text-green-400 truncate max-w-[200px]">{selectedFile.name}</span> 
-                    : 'Click to select Word file'}
+                    : 'Click to select Word or PDF file'}
                   {/* <span className="text-blue-600 underline">browse</span> */}
                 </span>
             </span>
-            {!selectedFile && <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">.doc or .docx only</span>}
+            {!selectedFile && <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">.doc, .docx, or .pdf only</span>}
             <input
               ref={fileInputRef}
               id="file-upload"
               name="file-upload"
               type="file"
-              accept=".doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              accept=".doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.pdf,application/pdf"
               onChange={handleFileChange}
               className="sr-only" // Visually hide the default input
               disabled={isUploading}
