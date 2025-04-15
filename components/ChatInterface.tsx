@@ -19,7 +19,7 @@ interface Message {
   isLoading?: boolean; // Flag for AI thinking message
 }
 
-const CHUNK_UPDATE_THRESHOLD = 3; // Update UI every N stream chunks
+const CHUNK_UPDATE_THRESHOLD = 20; // Update UI every 20 stream chunks
 
 const ChatInterface: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
