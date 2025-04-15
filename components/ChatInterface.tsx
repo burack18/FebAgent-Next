@@ -37,7 +37,7 @@ const ChatInterface: React.FC = () => {
   };
 
   const updateMessage = useCallback((messageId: number, newText: string, isLoading = false) => {
-      console.log(`Final Update: message ${messageId}. isLoading: ${isLoading}. Text length: ${newText.length}`);
+      console.log(`Update Msg ${messageId}: isLoading=${isLoading}, Text Length=${newText.length}`);
       setMessages(prevMessages =>
           prevMessages.map(msg =>
               msg.id === messageId
@@ -55,12 +55,9 @@ const ChatInterface: React.FC = () => {
     setIsSending(true);
     setError(null);
 
-    let accumulatedAiText = ''; // Use local variable
-
     const userMessageId = nextId.current++;
     const newUserMessage: Message = { id: userMessageId, sender: 'user', text: trimmedInput };
 
-    // Use local variable for the AI message ID
     const aiMessageId = nextId.current++; 
     const aiPlaceholderMessage: Message = { id: aiMessageId, sender: 'ai', text: '', isLoading: true }; 
 
@@ -70,53 +67,41 @@ const ChatInterface: React.FC = () => {
     try {
       const requestBody: AskRequest = { question: trimmedInput, sessionKey: SESSION_KEY };
 
+      // --- Requesting JSON body, Accepting plain text response ---
       const response = await fetchWithAuth(`${API_URL}/api/v1/agents/ask`, {
         method: 'POST',
-        headers: { 'Accept': 'text/event-stream' },
-        body: requestBody,
+        headers: { 
+            'Accept': 'text/plain', // Expecting a raw string response
+            'Content-Type': 'application/json' // Sending request body as JSON
+        },
+        body: JSON.stringify(requestBody), 
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+        let errorText = `HTTP error! status: ${response.status}`;
+        try {
+          // Try to get error details as text
+          const errText = await response.text(); 
+          errorText = errText || errorText;
+        } catch (_) {
+          // Ignore if error response cannot be read as text
+        }
+        throw new Error(errorText);
       }
-      if (!response.body) { throw new Error("Response body is null"); }
 
-      const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
-      let isFirstChunk = true;
-
-      while (true) { 
-          const { value, done } = await reader.read();
-          
-          if (value) {
-              const lines = value.split('\n\n'); 
-              for (const line of lines) {
-                  if (line.startsWith('data:')) {
-                      let dataPart = line.substring(5);
-                      if (isFirstChunk && dataPart.length > 0) {
-                          dataPart = dataPart.trimStart();
-                          if (dataPart.length > 0) { isFirstChunk = false; }
-                      }
-                      if (dataPart) {
-                          accumulatedAiText += dataPart; 
-                      }
-                  }
-              }
-          }
-          
-          if (done) {
-              console.log('Stream finished. Final Text:', JSON.stringify(accumulatedAiText));
-              // Use aiMessageId directly
-              updateMessage(aiMessageId, accumulatedAiText, false);
-              break; 
-          }
-      }
+      // --- Process plain text response --- 
+      const aiResponseText = await response.text(); 
+      
+      console.log('Received non-streaming text response:', JSON.stringify(aiResponseText));
+      
+      // --- Single final update ---
+      updateMessage(aiMessageId, aiResponseText, false);
 
     } catch (err) {
-      console.error("Stream error:", err);
+      console.error("Request error:", err);
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       setError(`Response error: ${errorMessage}`);
-      // Use aiMessageId directly
+      // Update placeholder with error on failure
       updateMessage(aiMessageId, `Error: ${errorMessage.substring(0, 150)}...`, false);
     } finally {
       setIsSending(false);
