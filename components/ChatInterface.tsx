@@ -19,8 +19,6 @@ interface Message {
   isLoading?: boolean; // Flag for AI thinking message
 }
 
-const STREAM_READ_INTERVAL = 100; // ms delay between stream reads
-
 const ChatInterface: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState<string>('');
@@ -28,34 +26,18 @@ const ChatInterface: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const messageEndRef = useRef<HTMLDivElement>(null); // Ref for scrolling
   const nextId = useRef(0); // Ref for generating unique message IDs
-  // Refs needed for streaming
-  const accumulatedTextRef = useRef(''); 
-  const currentAiMessageIdRef = useRef<number | null>(null); 
-  const streamReaderRef = useRef<ReadableStreamDefaultReader<string> | null>(null);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  const isReadingRef = useRef<boolean>(false); // Prevent overlapping reads
 
   // Scroll to bottom when messages change
   useEffect(() => {
     messageEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Cleanup interval on unmount
-  useEffect(() => {
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        console.log('Stream read interval cleared on unmount');
-      }
-    };
-  }, []); 
-
   const handleInputChange = (event: ChangeEvent<HTMLInputElement>) => {
     setInputValue(event.target.value);
   };
 
   const updateMessage = useCallback((messageId: number, newText: string, isLoading = false) => {
-      console.log(`Updating message ${messageId}. isLoading: ${isLoading}. Text length: ${newText.length}`);
+      console.log(`Final Update: message ${messageId}. isLoading: ${isLoading}. Text length: ${newText.length}`);
       setMessages(prevMessages =>
           prevMessages.map(msg =>
               msg.id === messageId
@@ -65,70 +47,6 @@ const ChatInterface: React.FC = () => {
       );
   }, []); 
 
-  // --- Function to process a single stream read --- 
-  const processChunk = useCallback(async () => {
-    if (!streamReaderRef.current || !currentAiMessageIdRef.current) return;
-
-    isReadingRef.current = true;
-    let isDone = false;
-
-    try {
-      const { value, done } = await streamReaderRef.current.read();
-      isDone = done;
-
-      if (value) {
-        let dataProcessedInValue = false;
-        const lines = value.split('\n\n');
-        for (const line of lines) {
-          if (line.startsWith('data:')) {
-            let dataPart = line.substring(5);
-            // Simplified: Assume isFirstChunk logic isn't strictly needed with intervals
-            if (dataPart) {
-              accumulatedTextRef.current += dataPart;
-              dataProcessedInValue = true;
-            }
-          }
-        }
-        if (dataProcessedInValue) {
-          updateMessage(currentAiMessageIdRef.current, accumulatedTextRef.current, true);
-        }
-      }
-
-      if (done) {
-        console.log('Stream finished. Final Text:', JSON.stringify(accumulatedTextRef.current));
-        if (intervalRef.current) clearInterval(intervalRef.current);
-        if (currentAiMessageIdRef.current !== null) {
-           updateMessage(currentAiMessageIdRef.current, accumulatedTextRef.current, false);
-        }
-        currentAiMessageIdRef.current = null;
-        streamReaderRef.current = null; // Clear reader ref
-      }
-
-    } catch(readError) {
-        console.error("Stream read error:", readError);
-        if (intervalRef.current) clearInterval(intervalRef.current);
-        setError(`Stream read error: ${readError instanceof Error ? readError.message : 'Unknown error'}`);
-        if (currentAiMessageIdRef.current !== null) {
-            updateMessage(currentAiMessageIdRef.current, `Error reading stream: ${readError instanceof Error ? readError.message : 'Unknown error'}`, false);
-        }
-        currentAiMessageIdRef.current = null; 
-        streamReaderRef.current = null; 
-        isDone = true; // Treat error as done
-    } finally {
-        isReadingRef.current = false;
-    }
-  }, [updateMessage]); // Dependencies for the callback
-
-  // --- Interval Callback --- 
-  const intervalCallback = useCallback(() => {
-    if (isReadingRef.current) {
-        console.log("Interval tick skipped, still reading previous chunk.");
-        return; // Don't start a new read if the previous one hasn't finished
-    }
-    processChunk();
-  }, [processChunk]); // Dependency
-
-
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const trimmedInput = inputValue.trim();
@@ -137,22 +55,14 @@ const ChatInterface: React.FC = () => {
     setIsSending(true);
     setError(null);
 
-    // Clear previous interval if any
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    intervalRef.current = null;
-    isReadingRef.current = false; // Reset reading flag
-    streamReaderRef.current = null; // Clear reader ref
-
-    // Reset accumulation for new message
-    accumulatedTextRef.current = '';
-    currentAiMessageIdRef.current = null; 
+    let accumulatedAiText = ''; // Use local variable
 
     const userMessageId = nextId.current++;
     const newUserMessage: Message = { id: userMessageId, sender: 'user', text: trimmedInput };
 
+    // Use local variable for the AI message ID
     const aiMessageId = nextId.current++; 
     const aiPlaceholderMessage: Message = { id: aiMessageId, sender: 'ai', text: '', isLoading: true }; 
-    currentAiMessageIdRef.current = aiMessageId; 
 
     setMessages(prevMessages => [...prevMessages, newUserMessage, aiPlaceholderMessage]);
     setInputValue('');
@@ -172,43 +82,46 @@ const ChatInterface: React.FC = () => {
       }
       if (!response.body) { throw new Error("Response body is null"); }
 
-      streamReaderRef.current = response.body.pipeThrough(new TextDecoderStream()).getReader();
-      // let isFirstChunk = true; // Can likely remove this if interval is slow enough
+      const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
+      let isFirstChunk = true;
 
-      // --- Start the interval to read chunks --- 
-      intervalRef.current = setInterval(intervalCallback, STREAM_READ_INTERVAL);
-
-      // Removed the while(true) loop
+      while (true) { 
+          const { value, done } = await reader.read();
+          
+          if (value) {
+              const lines = value.split('\n\n'); 
+              for (const line of lines) {
+                  if (line.startsWith('data:')) {
+                      let dataPart = line.substring(5);
+                      if (isFirstChunk && dataPart.length > 0) {
+                          dataPart = dataPart.trimStart();
+                          if (dataPart.length > 0) { isFirstChunk = false; }
+                      }
+                      if (dataPart) {
+                          accumulatedAiText += dataPart; 
+                      }
+                  }
+              }
+          }
+          
+          if (done) {
+              console.log('Stream finished. Final Text:', JSON.stringify(accumulatedAiText));
+              // Use aiMessageId directly
+              updateMessage(aiMessageId, accumulatedAiText, false);
+              break; 
+          }
+      }
 
     } catch (err) {
-      // Handle fetch errors (before stream reading starts)
-      console.error("Fetch setup error:", err);
-      if (intervalRef.current) clearInterval(intervalRef.current);
+      console.error("Stream error:", err);
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-      setError(`Response setup error: ${errorMessage}`);
-      if (currentAiMessageIdRef.current !== null) {
-          updateMessage(currentAiMessageIdRef.current, `Error: ${errorMessage.substring(0, 150)}...`, false);
-      }
-      currentAiMessageIdRef.current = null; 
-      streamReaderRef.current = null; // Clear reader ref
+      setError(`Response error: ${errorMessage}`);
+      // Use aiMessageId directly
+      updateMessage(aiMessageId, `Error: ${errorMessage.substring(0, 150)}...`, false);
     } finally {
-      // Note: setIsSending(false) should ideally happen only after the stream is fully processed or errored.
-      // We move this logic to the point where the stream actually finishes (in processChunk or catch blocks).
-      // setIsSending(false); 
+      setIsSending(false);
     }
   };
-
-  // Separate effect to handle setting isSending false when the stream actually ends
-  useEffect(() => {
-      // Find if any AI message is still loading
-      const stillLoading = messages.some(msg => msg.sender === 'ai' && msg.isLoading);
-      if (!stillLoading && isSending) {
-          // This condition might be too broad if multiple requests could overlap
-          // But for a single request model, it works.
-          console.log("No AI messages loading, setting isSending to false.");
-          setIsSending(false);
-      }
-  }, [messages, isSending]);
 
   return (
     <div className="flex h-screen bg-gray-100 dark:bg-gray-900">
@@ -236,19 +149,26 @@ const ChatInterface: React.FC = () => {
                         
                         return (
                             <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                {/* No pulse animation */} 
-                                <div className={`max-w-lg px-4 py-2 rounded-lg shadow ${ 
-                                    msg.sender === 'user'
+                                {/* Apply pulse if loading, otherwise show final content */} 
+                                <div className={`max-w-lg px-4 py-2 rounded-lg shadow ${msg.isLoading ? 'animate-pulse bg-gray-400 dark:bg-gray-700' : ''} ${ 
+                                    !msg.isLoading && msg.sender === 'user'
                                         ? 'bg-blue-500 text-white'
-                                        : 'bg-gray-300 dark:bg-gray-600 text-gray-900 dark:text-white'
+                                        : !msg.isLoading && msg.sender === 'ai'
+                                        ? 'bg-gray-300 dark:bg-gray-600 text-gray-900 dark:text-white'
+                                        : '' // Rely on pulsing background if loading
                                 } break-words`}> 
-                                    <div> 
-                                        <ReactMarkdown 
-                                            remarkPlugins={[remarkGfm]} 
-                                        >
-                                            {textToRender || ''}
-                                        </ReactMarkdown>
-                                    </div>
+                                    {/* Render text only when not loading */} 
+                                    {!msg.isLoading && (
+                                        <div> 
+                                            <ReactMarkdown 
+                                                remarkPlugins={[remarkGfm]} 
+                                            >
+                                                {textToRender || ''}
+                                            </ReactMarkdown>
+                                        </div>
+                                    )}
+                                    {/* Optional: Minimum height placeholder during load */} 
+                                    {msg.isLoading && <div className="h-4"></div>} 
                                 </div>
                             </div>
                         );
