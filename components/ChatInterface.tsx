@@ -19,6 +19,8 @@ interface Message {
   isLoading?: boolean; // Flag for AI thinking message
 }
 
+const CHUNK_UPDATE_THRESHOLD = 3; // Update UI every N stream chunks
+
 const ChatInterface: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState<string>('');
@@ -26,9 +28,10 @@ const ChatInterface: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const messageEndRef = useRef<HTMLDivElement>(null); // Ref for scrolling
   const nextId = useRef(0); // Ref for generating unique message IDs
-  // Refs needed for accumulating text during streaming
+  // Refs needed for accumulating text and managing updates
   const accumulatedTextRef = useRef(''); 
-  const currentAiMessageIdRef = useRef<number | null>(null); // Ref to hold the ID of the message being updated
+  const currentAiMessageIdRef = useRef<number | null>(null); 
+  const chunkCounterRef = useRef<number>(0); // Counter for received chunks
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -39,9 +42,8 @@ const ChatInterface: React.FC = () => {
     setInputValue(event.target.value);
   };
 
-  // Function to update a specific message in the main list (memoized)
   const updateMessage = useCallback((messageId: number, newText: string, isLoading = false) => {
-      console.log(`Updating message ${messageId}. New text length: ${newText.length}, isLoading: ${isLoading}`);
+      console.log(`Updating message ${messageId}. Counter reset. New text length: ${newText.length}, isLoading: ${isLoading}`);
       setMessages(prevMessages =>
           prevMessages.map(msg =>
               msg.id === messageId
@@ -49,6 +51,7 @@ const ChatInterface: React.FC = () => {
                   : msg
           )
       );
+      chunkCounterRef.current = 0; // Reset counter after update
   }, []); 
 
 
@@ -60,16 +63,17 @@ const ChatInterface: React.FC = () => {
     setIsSending(true);
     setError(null);
 
-    // Reset accumulation for new message
+    // Reset accumulation and counter for new message
     accumulatedTextRef.current = '';
     currentAiMessageIdRef.current = null; 
+    chunkCounterRef.current = 0; 
 
     const userMessageId = nextId.current++;
     const newUserMessage: Message = { id: userMessageId, sender: 'user', text: trimmedInput };
 
     const aiMessageId = nextId.current++; 
     const aiPlaceholderMessage: Message = { id: aiMessageId, sender: 'ai', text: '', isLoading: true }; 
-    currentAiMessageIdRef.current = aiMessageId; // Store the ID for updates
+    currentAiMessageIdRef.current = aiMessageId; 
 
     setMessages(prevMessages => [...prevMessages, newUserMessage, aiPlaceholderMessage]);
     setInputValue('');
@@ -91,15 +95,13 @@ const ChatInterface: React.FC = () => {
 
       const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
       let isFirstChunk = true;
-      // Remove initial loading state earlier if desired, or keep it until first chunk
-      // updateMessage(aiMessageId, '', true); 
 
       while (true) { 
           const { value, done } = await reader.read();
           
           if (value) {
+              chunkCounterRef.current += 1; // Increment counter for each received value
               const lines = value.split('\n\n'); 
-              let chunkProcessed = false; // Flag to update only once per received value
               for (const line of lines) {
                   if (line.startsWith('data:')) {
                       let dataPart = line.substring(5);
@@ -109,38 +111,35 @@ const ChatInterface: React.FC = () => {
                       }
                       if (dataPart) {
                           accumulatedTextRef.current += dataPart; 
-                          chunkProcessed = true;
                       }
                   }
               }
-              // --- Update UI after processing each chunk --- 
-              if (chunkProcessed && currentAiMessageIdRef.current !== null) {
-                  // Update with current accumulated text, keep isLoading potentially true until done
+              // --- Update UI only if threshold is met --- 
+              if (chunkCounterRef.current >= CHUNK_UPDATE_THRESHOLD && currentAiMessageIdRef.current !== null) {
                   updateMessage(currentAiMessageIdRef.current, accumulatedTextRef.current, true); 
               }
           }
           
           if (done) {
               console.log('Stream finished. Final Text:', JSON.stringify(accumulatedTextRef.current));
-              // --- Final update to remove loading state --- 
+              // --- Final update to show remaining text and remove loading state --- 
               if (currentAiMessageIdRef.current !== null) {
+                   // Call update even if threshold wasn't met for the last few chunks
                    updateMessage(currentAiMessageIdRef.current, accumulatedTextRef.current, false);
               }
-              currentAiMessageIdRef.current = null; // Clear the ref
-              break; // Exit the reading loop
+              currentAiMessageIdRef.current = null; 
+              break; 
           }
       }
 
     } catch (err) {
-      // --- Removed interval cleanup on error ---
       console.error("Stream error:", err);
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       setError(`Response error: ${errorMessage}`);
-      // Update placeholder with error message
       if (currentAiMessageIdRef.current !== null) {
           updateMessage(currentAiMessageIdRef.current, `Error: ${errorMessage.substring(0, 150)}...`, false);
       }
-      currentAiMessageIdRef.current = null; // Clear the ref
+      currentAiMessageIdRef.current = null; 
     } finally {
       setIsSending(false);
     }
