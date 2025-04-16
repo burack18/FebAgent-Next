@@ -1,11 +1,24 @@
 // utils/fetchWithAuth.ts
 
-// Helper function to get token (avoids direct context dependency here)
-const getToken = (): string | null => {
+// Helper function to get token 
+const getTokenInfo = (): { token: string | null; expiration: string | null } => {
     if (typeof window !== 'undefined') {
-        return localStorage.getItem('authToken'); // Use the same key as in AuthContext
+        const token = localStorage.getItem('authToken');
+        const expiration = localStorage.getItem('authTokenExpiration'); // Key for expiration
+        return { token, expiration };
     }
-    return null;
+    return { token: null, expiration: null };
+};
+
+// Function to handle logout (can be expanded)
+const logoutUser = () => {
+    if (typeof window !== 'undefined') {
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('authTokenExpiration');
+        // Redirect to login page
+        //window.location.href = '/login'; // Adjust route if needed // <-- RE-ENABLED REDIRECT
+        // console.log("Redirect to login page temporarily disabled for debugging."); // Removed log
+    }
 };
 
 // Define a type for the options to avoid ambiguity with fetch's RequestInit
@@ -19,27 +32,59 @@ export const fetchWithAuth = async (
     url: string,
     options: FetchOptions = {}
 ): Promise<Response> => {
-    const token = getToken();
+
+    // Check token validity unless it's a public route
+    if (!options.isPublic) {
+        const { token, expiration } = getTokenInfo();
+        if (!token || !expiration) {
+            logoutUser();
+            throw new Error('User is not authenticated.'); 
+        }
+
+        try {
+            const expirationDate = new Date(expiration);
+            if (isNaN(expirationDate.getTime())) {
+                 console.error('Invalid expiration date format stored:', expiration);
+                 logoutUser();
+                 throw new Error('Invalid token expiration date format.');
+            }
+
+            // Check if token is expired
+            if (expirationDate <= new Date()) {
+                logoutUser();
+                throw new Error('Token expired.');
+            }
+            
+            // Token is valid, proceed
+
+        } catch (error) {
+             // Handle potential errors during date parsing or comparison
+             console.error('Error checking token expiration:', error);
+             logoutUser(); // Log out if unsure about validity
+             throw new Error('Error validating token.');
+        }
+    }
+
+    // --- Original Fetch Logic (with slight adjustment for token access) --- 
+    const tokenForHeader = options.isPublic ? null : getTokenInfo().token;
+
     const defaultHeaders: Record<string, string> = {
-        // Default to JSON, but allow override
         'Content-Type': 'application/json',
-        ...options.headers, // Merge provided headers early
+        ...options.headers, 
     };
 
-    // Add Authorization header if token exists and it's not a public route
-    if (token && !options.isPublic) {
-        defaultHeaders['Authorization'] = `Bearer ${token}`;
+    if (tokenForHeader && !options.isPublic) { // Check again (redundant but safe)
+        defaultHeaders['Authorization'] = `Bearer ${tokenForHeader}`;
     }
 
     let processedBody = options.body;
 
-    // Stringify body if it's an object and Content-Type is JSON
     if (typeof processedBody === 'object' && 
         processedBody !== null && 
-        !(processedBody instanceof FormData) && // Don't stringify FormData
-        !(processedBody instanceof Blob) && // Don't stringify Blob
-        !(processedBody instanceof ArrayBuffer) && // Don't stringify ArrayBuffer
-        !(processedBody instanceof URLSearchParams) && // Don't stringify URLSearchParams
+        !(processedBody instanceof FormData) && 
+        !(processedBody instanceof Blob) && 
+        !(processedBody instanceof ArrayBuffer) && 
+        !(processedBody instanceof URLSearchParams) && 
         defaultHeaders['Content-Type'] === 'application/json') 
     { 
         try {
@@ -50,29 +95,34 @@ export const fetchWithAuth = async (
         }
     }
 
-    // Handle FormData - remove Content-Type as browser sets it
     if (processedBody instanceof FormData) {
         delete defaultHeaders['Content-Type'];
     }
 
     try {
         const response = await fetch(url, {
-            // Spread options but override headers and body
             ...options,
             headers: defaultHeaders,
-            body: processedBody as BodyInit | null | undefined, // Cast refined body
+            body: processedBody as BodyInit | null | undefined, 
         });
 
-        // Optional: Add global error handling for common auth errors
-        // if (response.status === 401) {
-        //     // Handle unauthorized error, e.g., redirect to login
-        //     console.error('Unauthorized request to:', url);
-        //     // Potentially call logout() or redirect here
-        // }
+        // Optional: Keep 401 check as a fallback, though expiration check should catch most
+        if (!options.isPublic && response.status === 401) {
+            console.error('Unauthorized request (401) received despite valid token check to:', url);
+            logoutUser(); // Logout if backend rejects a seemingly valid token
+            // Throw specific error or let calling code handle based on status
+            throw new Error('Unauthorized (401).'); 
+        }
 
         return response;
     } catch (error) {
         console.error('Fetch error:', error);
-        throw error; // Re-throw the error to be handled by the calling code
+        // Avoid re-throwing errors we already handled (like expired token)
+        if (!(error instanceof Error && (error.message === 'Token expired.' || error.message === 'User is not authenticated.' || error.message === 'Invalid token expiration date format.' || error.message === 'Error validating token.' || error.message === 'Unauthorized (401).') )) {
+             throw error; // Re-throw only unexpected fetch errors
+        }
+        // If it was one of our handled errors, we need to return something or let it bubble
+        // Throwing is usually best practice here to signal failure
+        throw error; 
     }
 }; 

@@ -15,9 +15,6 @@ const UserMenu: React.FC = () => {
     const { currentUser, logout } = useAuth();
     const menuRef = useRef<HTMLDivElement>(null);
 
-    // Log the currentUser value when component renders/updates
-    console.log('Rendering UserMenu, currentUser:', currentUser);
-
     // Close dropdown if clicking outside
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {

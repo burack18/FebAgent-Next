@@ -37,7 +37,6 @@ const ChatInterface: React.FC = () => {
   };
 
   const updateMessage = useCallback((messageId: number, newText: string, isLoading = false) => {
-      console.log(`Update Msg ${messageId}: isLoading=${isLoading}, Text Length=${newText.length}`);
       setMessages(prevMessages =>
           prevMessages.map(msg =>
               msg.id === messageId
@@ -92,16 +91,11 @@ const ChatInterface: React.FC = () => {
       // --- Process plain text response --- 
       const aiResponseText = await response.text(); 
       
-      console.log('Received non-streaming text response:', JSON.stringify(aiResponseText));
-      
-      // --- Single final update ---
       updateMessage(aiMessageId, aiResponseText, false);
 
     } catch (err) {
-      console.error("Request error:", err);
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       setError(`Response error: ${errorMessage}`);
-      // Update placeholder with error on failure
       updateMessage(aiMessageId, `Error: ${errorMessage.substring(0, 150)}...`, false);
     } finally {
       setIsSending(false);

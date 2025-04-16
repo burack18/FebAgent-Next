@@ -49,30 +49,24 @@ const Sidebar: React.FC = () => {
       return;
     }
      
-    console.log('Fetching documents...'); // Log when fetching starts
     setIsLoading(true);
     setError(null);
     try {
-      // Use fetchWithAuth for GET
       const response = await fetchWithAuth(`${API_URL}/api/v1/documents`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       const data: ApiDocument[] = await response.json();
-      console.log('Raw data received from API:', data);
       if (!Array.isArray(data)) {
         throw new Error('Expected an array of documents');
       } 
-      // Sor t by documentName (camelCase)
       const sortedData = data.sort((a, b) => {
-        const nameA = a.documentName || ''; // Use camelCase
-        const nameB = b.documentName || ''; // Use camelCase
+        const nameA = a.documentName || ''; 
+        const nameB = b.documentName || ''; 
         return nameA.localeCompare(nameB);
       });
       setDocuments(sortedData);
-      console.log('Documents fetched successfully:', data.length);
     } catch (err) {
-      console.error("Failed to fetch documents:", err);
       setError(err instanceof Error ? err.message : 'An unknown error occurred');
     } finally {
       setIsLoading(false);
@@ -103,12 +97,9 @@ const Sidebar: React.FC = () => {
     if (!confirmModalState.docIdToDelete || !API_URL) return;
 
     setIsDeleting(true);
-    setError(null); // Clear previous errors
-
-    console.log(`Confirmed deletion for document ID: ${confirmModalState.docIdToDelete}`);
+    setError(null); 
 
     try {
-      // Use fetchWithAuth for DELETE
       const response = await fetchWithAuth(`${API_URL}/api/v1/documents/${encodeURIComponent(confirmModalState.docIdToDelete)}`, {
         method: 'DELETE',
       });
@@ -119,60 +110,45 @@ const Sidebar: React.FC = () => {
             const backendError = await response.text(); 
             errorText = backendError || errorText; 
         } catch (_) {}
-        console.error('Delete failed:', errorText);
-        // Set error state to show feedback, don't close modal immediately
         setError(`Failed to delete document: ${errorText}`); 
-        // Optionally re-throw if you want specific handling upstream, but setting error state is often enough for UI feedback.
-        // throw new Error(`Delete failed: ${errorText}`);
       } else {
-        console.log('Delete successful for ID:', confirmModalState.docIdToDelete);
-        setConfirmModalState({ isOpen: false, docIdToDelete: null, docNameToDelete: null }); // Close modal on success
-        await fetchDocuments(); // Refresh the list
+        setConfirmModalState({ isOpen: false, docIdToDelete: null, docNameToDelete: null }); 
+        await fetchDocuments(); 
       }
     } catch (deleteError) {
-      console.error('Delete error during fetch:', deleteError);
       setError(deleteError instanceof Error ? deleteError.message : 'An unexpected error occurred during deletion.');
     } finally {
       setIsDeleting(false); 
-      // Keep modal open if there was an error to show the message, 
-      // otherwise it's closed in the success block.
     }
   };
 
   // Function to handle the actual file upload API call
   const handleFileUpload = async (file: File) => {
     if (!API_URL) {
-      console.error('API URL is not configured for upload.');
       throw new Error('API URL not configured.');
     }
     
-    console.log(`Uploading file: ${file.name} to ${API_URL}/api/v1/documents/loadDocuments`);
-    
     const formData = new FormData();
-    formData.append(file.name, file); // Use filename as key
+    formData.append(file.name, file); 
 
     try {
-      // Use fetchWithAuth for POST with FormData
       const response = await fetchWithAuth(`${API_URL}/api/v1/documents/loadDocuments`, {
         method: 'POST',
-        body: formData, // Pass FormData directly
+        body: formData, 
       });
 
       if (!response.ok) {
         let errorText = `Status: ${response.status}`;
         try {
             const backendError = await response.text(); 
-            errorText = backendError || errorText; // Use backend error if available
+            errorText = backendError || errorText; 
         } catch (_) {}
-        console.error('Upload failed:', errorText);
         throw new Error(`Upload failed: ${errorText}`);
       }
 
-      console.log('Upload successful:', file.name);
-      await fetchDocuments(); // Refresh list after successful upload
+      await fetchDocuments(); 
 
     } catch (uploadError) {
-      console.error('Upload error during fetch:', uploadError);
       throw uploadError instanceof Error ? uploadError : new Error('An unexpected error occurred during upload.');
     }
   };
