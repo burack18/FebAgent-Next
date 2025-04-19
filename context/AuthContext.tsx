@@ -1,5 +1,6 @@
 'use client';
 
+import { User } from '@/types/user';
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 
 // Interface for credentials passed to login
@@ -10,7 +11,7 @@ interface Credentials {
 
 interface AuthContextType {
   isAuthenticated: boolean;
-  currentUser: string | null;
+  currentUser?: User;
   login: (credentials: Credentials) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
@@ -23,19 +24,21 @@ const TOKEN_STORAGE_KEY = 'authToken';
 const EXPIRATION_STORAGE_KEY = 'authTokenExpiration';
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [currentUser, setCurrentUser] = useState<string | null>(null);
+  const [currentUser, setCurrentUser] = useState<User>();
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const storedToken = localStorage.getItem(TOKEN_STORAGE_KEY);
-    const storedUser = sessionStorage.getItem('currentUser');
-    
+    const currentUserString = sessionStorage.getItem('currentUser')||'';
+
+
     if (storedToken) {
+      const user: User = JSON.parse(currentUserString) || '{}';
       setIsAuthenticated(true);
-      setCurrentUser(storedUser);
+      setCurrentUser(user);
     } else {
       setIsAuthenticated(false);
-      setCurrentUser(null);
+      setCurrentUser(undefined);
     }
     setIsLoading(false);
   }, []);
@@ -49,7 +52,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const login = async (credentials: Credentials) => {
     if (!API_URL) {
-        throw new Error("API URL not configured.");
+      throw new Error("API URL not configured.");
     }
     setIsLoading(true);
     try {
@@ -64,9 +67,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (!response.ok) {
         let errorText = `Login failed with status: ${response.status}`;
         try {
-            const backendError = await response.text();
-            errorText = backendError?.trim() ? backendError : errorText; 
-        } catch (_) {}
+          const backendError = await response.text();
+          errorText = backendError?.trim() ? backendError : errorText;
+        } catch (_) { }
         throw new Error(errorText);
       }
 
@@ -75,33 +78,33 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (!data.token) {
         throw new Error("Login successful, but token was not provided by the server.");
       }
-      
-      const username = data.username || credentials.username || "user";
-      
+
+      const user = data;
+
       setIsAuthenticated(true);
-      setCurrentUser(username);
+      setCurrentUser(user);
       localStorage.setItem(TOKEN_STORAGE_KEY, data.token);
       localStorage.setItem(EXPIRATION_STORAGE_KEY, data.expiration);
       sessionStorage.setItem('isAuthenticated', 'true');
-      sessionStorage.setItem('currentUser', username);
-      
+      sessionStorage.setItem('currentUser', JSON.stringify(user)); // Store username in session storage
+
     } catch (error) {
-        setIsAuthenticated(false);
-        setCurrentUser(null);
-        localStorage.removeItem(TOKEN_STORAGE_KEY);
-        localStorage.removeItem(EXPIRATION_STORAGE_KEY);
-        sessionStorage.removeItem('isAuthenticated');
-        sessionStorage.removeItem('currentUser');
-        throw error; 
+      setIsAuthenticated(false);
+      setCurrentUser(undefined);
+      localStorage.removeItem(TOKEN_STORAGE_KEY);
+      localStorage.removeItem(EXPIRATION_STORAGE_KEY);
+      sessionStorage.removeItem('isAuthenticated');
+      sessionStorage.removeItem('currentUser');
+      throw error;
     } finally {
-        setIsLoading(false);
+      setIsLoading(false);
     }
   };
 
   const logout = () => {
     setIsLoading(true);
     setIsAuthenticated(false);
-    setCurrentUser(null);
+    setCurrentUser(undefined);
     localStorage.removeItem(TOKEN_STORAGE_KEY);
     localStorage.removeItem(EXPIRATION_STORAGE_KEY);
     sessionStorage.removeItem('isAuthenticated');

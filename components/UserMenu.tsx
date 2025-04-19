@@ -37,7 +37,7 @@ const UserMenu: React.FC = () => {
         <div className="relative ml-auto flex items-center space-x-2" ref={menuRef}>
             {currentUser && (
                 <span className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">
-                    {currentUser}
+                    {currentUser.username}
                 </span>
             )}
             <button

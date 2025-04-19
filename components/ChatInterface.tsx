@@ -2,6 +2,7 @@
 
 import React, { useState, FormEvent, ChangeEvent, useRef, useEffect, useCallback } from 'react';
 import Sidebar from './Sidebar';
+import SystemMessagePanel from './SystemMessagePanel';
 import { AskRequest, AskResponse } from '@/types/chat'; // Import chat types
 import UserMenu from './UserMenu'; // Import UserMenu
 import { fetchWithAuth } from '@/utils/fetchWithAuth'; // Import the wrapper
@@ -186,6 +187,8 @@ const ChatInterface: React.FC = () => {
               </div>
           </div>
       </div>
+      
+      <SystemMessagePanel />
     </div>
   );
 };
