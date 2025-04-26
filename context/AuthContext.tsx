@@ -1,5 +1,6 @@
 'use client';
 
+import { Service } from '@/types/chat';
 import { User } from '@/types/user';
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 
@@ -16,6 +17,8 @@ interface AuthContextType {
   logout: () => void;
   isLoading: boolean;
   getToken: () => string | null;
+  service: Service; // Added service to the context,
+  setService: React.Dispatch<React.SetStateAction<Service>>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -26,12 +29,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState<User>();
   const [isLoading, setIsLoading] = useState(true);
+  const [service , setService] = useState(Service.ChatGPT); 
 
   useEffect(() => {
     const storedToken = localStorage.getItem(TOKEN_STORAGE_KEY);
     const currentUserString = sessionStorage.getItem('currentUser')||'';
 
-
+    console.log('service',service)
     if (storedToken) {
       const user: User = JSON.parse(currentUserString) || '{}';
       setIsAuthenticated(true);
@@ -41,7 +45,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setCurrentUser(undefined);
     }
     setIsLoading(false);
-  }, []);
+  }, [service]);
 
   const getToken = (): string | null => {
     if (typeof window !== 'undefined') {
@@ -113,7 +117,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, currentUser, login, logout, isLoading, getToken }}>
+    <AuthContext.Provider value={{ isAuthenticated, currentUser, login, logout, isLoading, getToken,service,setService }}>
       {children}
     </AuthContext.Provider>
   );

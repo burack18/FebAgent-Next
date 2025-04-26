@@ -3,6 +3,11 @@
 export interface AskRequest {
   question: string;
   sessionKey: string;
+  service:Service
+}
+export enum Service {
+  ChatGPT,
+  Gemini
 }
 
 // --- Response Types --- 

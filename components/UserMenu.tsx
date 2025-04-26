@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { Service } from '@/types/chat';
 
 // Simple User Icon SVG
 const UserIcon: React.FC<{ className?: string }> = ({ className = "w-5 h-5" }) => (
@@ -12,7 +13,7 @@ const UserIcon: React.FC<{ className?: string }> = ({ className = "w-5 h-5" }) =
 
 const UserMenu: React.FC = () => {
     const [isOpen, setIsOpen] = useState(false);
-    const { currentUser, logout } = useAuth();
+    const { currentUser, logout, service, setService } = useAuth();
     const menuRef = useRef<HTMLDivElement>(null);
 
     // Close dropdown if clicking outside
@@ -32,9 +33,17 @@ const UserMenu: React.FC = () => {
         logout();
         setIsOpen(false);
     };
+    const handleServiceChange = (newService: Service) => {
+        console.log('Service changed to:', newService);
+        setService(newService==1? Service.Gemini : Service.ChatGPT); 
+    }
 
     return (
         <div className="relative ml-auto flex items-center space-x-2" ref={menuRef}>
+            <select onChange={(e: any) => handleServiceChange(e.target.value)}>
+                <option value={Service.ChatGPT}>ChatGPT</option>
+                <option value={Service.Gemini}>Gemini</option>
+            </select>
             {currentUser && (
                 <span className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">
                     {currentUser.username}
@@ -50,6 +59,7 @@ const UserMenu: React.FC = () => {
 
             {isOpen && (
                 <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg py-1 ring-1 ring-black ring-opacity-5 z-20">
+
                     <button
                         onClick={handleLogout}
                         className="block w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"

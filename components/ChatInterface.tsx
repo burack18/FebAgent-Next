@@ -3,11 +3,12 @@
 import React, { useState, FormEvent, ChangeEvent, useRef, useEffect, useCallback } from 'react';
 import Sidebar from './Sidebar';
 import SystemMessagePanel from './SystemMessagePanel';
-import { AskRequest, AskResponse } from '@/types/chat'; // Import chat types
+import { AskRequest, AskResponse, Service } from '@/types/chat'; // Import chat types
 import UserMenu from './UserMenu'; // Import UserMenu
 import { fetchWithAuth } from '@/utils/fetchWithAuth'; // Import the wrapper
 import ReactMarkdown from 'react-markdown'; // Ensure this is imported
 import remarkGfm from 'remark-gfm'; // Ensure this is imported
+import { useAuth } from '@/context/AuthContext';
 
 // Use environment variable for API base URL
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -25,12 +26,14 @@ const ChatInterface: React.FC = () => {
   const [inputValue, setInputValue] = useState<string>('');
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const messageEndRef = useRef<HTMLDivElement>(null); // Ref for scrolling
-  const nextId = useRef(0); // Ref for generating unique message IDs
+  const { service } = useAuth(); // Ensure AuthContext is used to get the service
+  const messageEndRef = useRef<HTMLDivElement>(null);
+  const nextId = useRef(0);
 
   // Scroll to bottom when messages change
   useEffect(() => {
     messageEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    console.log(service)
   }, [messages]);
 
   const handleInputChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -65,7 +68,7 @@ const ChatInterface: React.FC = () => {
     setInputValue('');
 
     try {
-      const requestBody: AskRequest = { question: trimmedInput, sessionKey: SESSION_KEY };
+      const requestBody: AskRequest = { question: trimmedInput, sessionKey: SESSION_KEY, service: service };
 
       // --- Requesting JSON body, Accepting plain text response ---
       const response = await fetchWithAuth(`${API_URL}/api/v1/agents/ask`, {
@@ -122,10 +125,10 @@ const ChatInterface: React.FC = () => {
                 return (
                   <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
                     <div className={`max-w-lg px-4 py-2 rounded-lg shadow ${msg.isLoading ? 'animate-pulse bg-gray-400 dark:bg-gray-700' : ''} ${!msg.isLoading && msg.sender === 'user'
-                        ? 'bg-blue-500 text-white'
-                        : !msg.isLoading && msg.sender === 'ai'
-                          ? 'bg-gray-300 dark:bg-gray-600 text-gray-900 dark:text-white'
-                          : ''
+                      ? 'bg-blue-500 text-white'
+                      : !msg.isLoading && msg.sender === 'ai'
+                        ? 'bg-gray-300 dark:bg-gray-600 text-gray-900 dark:text-white'
+                        : ''
                       } break-words`}>
                       {!msg.isLoading && (
                         <div>
