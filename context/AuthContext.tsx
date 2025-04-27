@@ -37,9 +37,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     console.log('service',service)
     if (storedToken) {
-      const user: User = JSON.parse(currentUserString) || '{}';
-      setIsAuthenticated(true);
-      setCurrentUser(user);
+      try {
+        const user: User = JSON.parse(currentUserString) || '{}';
+        setIsAuthenticated(true);
+        setCurrentUser(user);
+      } catch (error) {
+        setIsAuthenticated(false);
+        setCurrentUser(undefined);
+        localStorage.removeItem(TOKEN_STORAGE_KEY);
+        localStorage.removeItem(EXPIRATION_STORAGE_KEY);
+        sessionStorage.removeItem('isAuthenticated');
+        sessionStorage.removeItem('currentUser');
+      }
     } else {
       setIsAuthenticated(false);
       setCurrentUser(undefined);
