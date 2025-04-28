@@ -34,7 +34,6 @@ const UserMenu: React.FC = () => {
         setIsOpen(false);
     };
     const handleServiceChange = (newService: Service) => {
-        console.log('Service changed to:', newService);
         setService(newService == 1 ? Service.Gemini : Service.ChatGPT);
     }
 

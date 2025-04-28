@@ -33,7 +33,6 @@ const ChatInterface: React.FC = () => {
   // Scroll to bottom when messages change
   useEffect(() => {
     messageEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    console.log(service)
   }, [messages]);
 
   const handleInputChange = (event: ChangeEvent<HTMLInputElement>) => {
