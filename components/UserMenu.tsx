@@ -35,27 +35,32 @@ const UserMenu: React.FC = () => {
     };
     const handleServiceChange = (newService: Service) => {
         console.log('Service changed to:', newService);
-        setService(newService==1? Service.Gemini : Service.ChatGPT); 
+        setService(newService == 1 ? Service.Gemini : Service.ChatGPT);
     }
 
     return (
-        <div className="relative ml-auto flex items-center space-x-2" ref={menuRef}>
-            <select onChange={(e: any) => handleServiceChange(e.target.value)}>
-                <option value={Service.ChatGPT}>ChatGPT</option>
+        <div className="relative ml-auto flex gap-2.5 items-center space-x-1" ref={menuRef}>
+            <select
+                onChange={(e:any) => handleServiceChange(e.target.value)}
+                className="block w-full m-auto px-4 py-2 mt-2 mx-3 text-gray-700 bg-white border border-gray-300 rounded-2xl shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+            >
+                <option value={Service.ChatGPT}>⚡ ChatGPT (Functions)</option>
                 <option value={Service.Gemini}>Gemini</option>
             </select>
-            {currentUser && (
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">
-                    {currentUser.username}
-                </span>
-            )}
-            <button
-                onClick={() => setIsOpen(!isOpen)}
-                className="p-1 rounded-full text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800 cursor-pointer"
-                title="User Menu"
-            >
-                <UserIcon />
-            </button>
+            <div className="flex items-center">
+                {currentUser && (
+                    <span className="text-sm w-full font-medium text-gray-700 dark:text-gray-300 truncate">
+                        {currentUser.username}
+                    </span>
+                )}
+                <button
+                    onClick={() => setIsOpen(!isOpen)}
+                    className="p-1 rounded-full text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800 cursor-pointer"
+                    title="User Menu"
+                >
+                    <UserIcon />
+                </button>
+            </div>
 
             {isOpen && (
                 <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg py-1 ring-1 ring-black ring-opacity-5 z-20">
