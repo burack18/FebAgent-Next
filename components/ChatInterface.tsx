@@ -38,7 +38,40 @@ const ChatInterface: React.FC = () => {
   const handleInputChange = (event: ChangeEvent<HTMLInputElement>) => {
     setInputValue(event.target.value);
   };
+  const clearMessages = async (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    setIsSending(true);
+    setError(null);
+    try {
 
+      // --- Requesting JSON body, Accepting plain text response ---
+      const response = await fetchWithAuth(`${API_URL}/api/v1/agents/clearhistory`, {
+        method: 'POST',
+        headers: {
+          'Accept': 'text/plain', // Expecting a raw string response
+          'Content-Type': 'application/json' // Sending request body as JSON
+        },
+      });
+
+      if (!response.ok) {
+        let errorText = `HTTP error! status: ${response.status}`;
+        try {
+          // Try to get error details as text
+          const errText = await response.text();
+          errorText = errText || errorText;
+        } catch (_) {
+        }
+        throw new Error(errorText);
+      }
+      setMessages([]);
+      setInputValue('');
+      setIsSending(false);
+
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      setError(`Response error: ${errorMessage}`);
+    }
+  }
   const updateMessage = useCallback((messageId: number, newText: string, isLoading = false) => {
     setMessages(prevMessages =>
       prevMessages.map(msg =>
@@ -165,6 +198,13 @@ const ChatInterface: React.FC = () => {
                   disabled={isSending}
                   className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white disabled:opacity-50"
                 />
+                <button
+                  onClick={(e) => clearMessages(e)}
+                  disabled={isSending || messages.length === 0}
+                  className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition duration-150 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  Clear Chat
+                </button>
                 <button
                   type="submit"
                   disabled={isSending || inputValue.trim() === ''}
