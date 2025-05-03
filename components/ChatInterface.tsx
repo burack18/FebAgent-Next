@@ -127,8 +127,10 @@ const ChatInterface: React.FC = () => {
       if (value) {
         const chunk = decoder.decode(value, { stream: true });
         fullText+=chunk;
+        if(chunk.startsWith('PREQUESTIONEND')){
+          fullText=chunk.slice('PREQUESTIONEND'.length);
+        }
         updateSmartdatMessage(aiSmartMessageId,fullText,false)
-        console.log(chunk); 
       }
     }
     setIsSending(false)
@@ -145,7 +147,7 @@ const ChatInterface: React.FC = () => {
     setInputValue(''); 
 
     // fetchSmartResponse(trimmedInput);
-    // fetchStadartResponse(trimmedInput);
+    fetchStadartResponse(trimmedInput);
     streamEx(trimmedInput)
   };
   const fetchSmartResponse = async(question:string)=>{
