@@ -85,10 +85,6 @@ const ChatInterface: React.FC = () => {
 
   const updateSmartdatMessage = useCallback((messageId: number, newText: string, isLoading = false) => {
     setSmartMessages(prevMessages =>{
-      console.log(newText);
-      console.log(prevMessages);
-      console.log(messageId);
-      
       return prevMessages.map(msg =>
         msg.id === messageId
           ? { ...msg, text: newText, isLoading: isLoading }
@@ -96,6 +92,47 @@ const ChatInterface: React.FC = () => {
       )
   });
   }, []);
+ 
+  const streamEx = async (question:string) => {
+    const requestBody: AskRequest = { question: question, sessionKey: SESSION_KEY, service: service };
+    const userMessageId = nextId.current++;
+    const newUserMessage: Message = { id: userMessageId, sender: 'user', text: question };
+
+    const aiSmartMessageId = nextId.current++;
+    const aiSmartPlaceholderMessage: Message = { id: aiSmartMessageId, sender: 'ai', text: '', isLoading: true };
+    setSmartMessages(prevMessages => [...prevMessages, newUserMessage, aiSmartPlaceholderMessage]);
+
+    const response = await fetchWithAuth(`${API_URL}/api/v1/agents/ask-smart-stream`, {
+      method: 'POST',
+      headers: {
+        'Accept': 'text/plain',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(requestBody),
+    });
+  
+    if (!response.ok || !response.body) {
+      console.error('Failed to fetch stream');
+      return;
+    }
+  
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder('utf-8');
+    let done = false;
+
+    while (!done) {
+      const { value, done: readerDone } = await reader.read();
+      done = readerDone;
+  
+      if (value) {
+        const chunk = decoder.decode(value, { stream: true });
+        updateSmartdatMessage(aiSmartMessageId,chunk,false)
+        console.log(chunk); 
+      }
+    }
+    setIsSending(false)
+    
+  };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -106,9 +143,9 @@ const ChatInterface: React.FC = () => {
     setError(null);
     setInputValue(''); 
 
-    fetchSmartResponse(trimmedInput);
-    fetchStadartResponse(trimmedInput);
-
+    // fetchSmartResponse(trimmedInput);
+    // fetchStadartResponse(trimmedInput);
+    streamEx(trimmedInput)
   };
   const fetchSmartResponse = async(question:string)=>{
     const userMessageId = nextId.current++;
