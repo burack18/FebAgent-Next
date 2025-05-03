@@ -3,22 +3,22 @@
 import React, { useState, FormEvent, ChangeEvent, useRef, useEffect, useCallback } from 'react';
 import Sidebar from './Sidebar';
 import SystemMessagePanel from './SystemMessagePanel';
-import { AskRequest, AskResponse, Service } from '@/types/chat'; // Import chat types
-import UserMenu from './UserMenu'; // Import UserMenu
-import { fetchWithAuth } from '@/utils/fetchWithAuth'; // Import the wrapper
-import ReactMarkdown from 'react-markdown'; // Ensure this is imported
-import remarkGfm from 'remark-gfm'; // Ensure this is imported
+import { AskRequest, AskResponse, Service } from '@/types/chat'; 
+import UserMenu from './UserMenu'; 
+import { fetchWithAuth } from '@/utils/fetchWithAuth'; 
+import ReactMarkdown from 'react-markdown'; 
+import remarkGfm from 'remark-gfm'; 
 import { useAuth } from '@/context/AuthContext';
+import { Button } from './ui/button';
 
-// Use environment variable for API base URL
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
-const SESSION_KEY = "b9d1f620-23c7-4c6e-8d8b-90e2f78c4b44"; // Hardcoded session key for now
+const SESSION_KEY = "b9d1f620-23c7-4c6e-8d8b-90e2f78c4b44"; 
 
 interface Message {
-  id: number; // Add unique id for messages
+  id: number; 
   sender: 'user' | 'ai';
   text: string;
-  isLoading?: boolean; // Flag for AI thinking message
+  isLoading?: boolean; 
 }
 
 const ChatInterface: React.FC = () => {
@@ -30,7 +30,6 @@ const ChatInterface: React.FC = () => {
   const messageEndRef = useRef<HTMLDivElement>(null);
   const nextId = useRef(0);
 
-  // Scroll to bottom when messages change
   useEffect(() => {
     messageEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -44,19 +43,18 @@ const ChatInterface: React.FC = () => {
     setError(null);
     try {
 
-      // --- Requesting JSON body, Accepting plain text response ---
       const response = await fetchWithAuth(`${API_URL}/api/v1/agents/clearhistory`, {
         method: 'POST',
         headers: {
-          'Accept': 'text/plain', // Expecting a raw string response
-          'Content-Type': 'application/json' // Sending request body as JSON
+          'Accept': 'text/plain', 
+          'Content-Type': 'application/json'
         },
       });
 
       if (!response.ok) {
         let errorText = `HTTP error! status: ${response.status}`;
         try {
-          // Try to get error details as text
+        
           const errText = await response.text();
           errorText = errText || errorText;
         } catch (_) {
@@ -102,12 +100,11 @@ const ChatInterface: React.FC = () => {
     try {
       const requestBody: AskRequest = { question: trimmedInput, sessionKey: SESSION_KEY, service: service };
 
-      // --- Requesting JSON body, Accepting plain text response ---
       const response = await fetchWithAuth(`${API_URL}/api/v1/agents/ask`, {
         method: 'POST',
         headers: {
-          'Accept': 'text/plain', // Expecting a raw string response
-          'Content-Type': 'application/json' // Sending request body as JSON
+          'Accept': 'text/plain', 
+          'Content-Type': 'application/json' 
         },
         body: JSON.stringify(requestBody),
       });
@@ -115,11 +112,9 @@ const ChatInterface: React.FC = () => {
       if (!response.ok) {
         let errorText = `HTTP error! status: ${response.status}`;
         try {
-          // Try to get error details as text
           const errText = await response.text();
           errorText = errText || errorText;
         } catch (_) {
-          // Ignore if error response cannot be read as text
         }
         throw new Error(errorText);
       }
@@ -176,7 +171,6 @@ const ChatInterface: React.FC = () => {
                   </div>
                 );
               })}
-              {/* Error Display */}
               {error && (
                 <div className="flex justify-start">
                   <div className="max-w-lg px-4 py-2 rounded-lg shadow bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-200">
@@ -184,10 +178,10 @@ const ChatInterface: React.FC = () => {
                   </div>
                 </div>
               )}
-              <div ref={messageEndRef} /> {/* Element to scroll to */}
+              <div ref={messageEndRef} /> 
             </div>
 
-            {/* Input area */}
+           
             <div className="p-4 border-t border-gray-200 dark:border-gray-700">
               <form onSubmit={handleSubmit} className="flex space-x-3">
                 <input
@@ -198,21 +192,21 @@ const ChatInterface: React.FC = () => {
                   disabled={isSending}
                   className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white disabled:opacity-50"
                 />
-                <button
+                <Button
                   type='button'
                   onClick={(e) => clearMessages(e)}
                   disabled={isSending || messages.length === 0}
                   className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition duration-150 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                 >
                   Clear Chat
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
                   disabled={isSending || inputValue.trim() === ''}
                   className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition duration-150 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                 >
                   {isSending ? 'Sending...' : 'Send'}
-                </button>
+                </Button>
               </form>
             </div>
           </div>

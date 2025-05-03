@@ -2,31 +2,25 @@
 
 import React, { useState, useEffect, useCallback, ChangeEvent } from 'react';
 import { fetchWithAuth } from '@/utils/fetchWithAuth';
-import { useAuth } from '@/context/AuthContext'; // Assuming useAuth provides currentUser
+import { useAuth } from '@/context/AuthContext';
 
-// Define the expected shape of the SystemMessage object
 interface SystemMessageData {
-  id?: string; // Optional, might not be needed for POST
+  id?: string;
   message: string;
   userID: string;
 }
 
-// Simple icon for collapse/expand
 const ChevronIcon: React.FC<{ isCollapsed: boolean, className?: string }> = ({ isCollapsed, className = "w-5 h-5" }) => (
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={`${className} transition-transform duration-300 ${isCollapsed ? 'rotate-0' : 'rotate-180'}`}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
     </svg>
 );
 
-// Use environment variable for API base URL
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 const SYSTEM_MESSAGE_ENDPOINT = `${API_URL}/api/v1/SystemMessage`;
 
-// Component now handles sidebar structure and content
 const SystemMessagePanel: React.FC = () => {
-  // --- State from Sidebar --- 
   const [isCollapsed, setIsCollapsed] = useState(true); // Start collapsed
-  // --- State for Panel Logic --- 
   const [initialMessage, setInitialMessage] = useState<string>('');
   const [currentMessage, setCurrentMessage] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -49,13 +43,10 @@ const SystemMessagePanel: React.FC = () => {
     try {
       const response = await fetchWithAuth(SYSTEM_MESSAGE_ENDPOINT);
 
-      // Check for 204 No Content explicitly, or if the response is OK but body might be null/empty
       if (response.status === 204) {
-          // No message set, treat as empty
           setInitialMessage('');
           setCurrentMessage('');
       } else if (!response.ok) {
-          // Handle actual fetch errors (like 4xx, 5xx)
           let errorText = `Failed to fetch: ${response.status}`;
           try {
               const backendError = await response.text();
@@ -63,16 +54,12 @@ const SystemMessagePanel: React.FC = () => {
           } catch (_) {}
           throw new Error(errorText);
       } else {
-          // Response is OK (e.g., 200), try to parse JSON
           const data: SystemMessageData | null = await response.json(); // Allow null
 
           if (data && data.message) {
-              // We got a valid message
               setInitialMessage(data.message);
               setCurrentMessage(data.message);
           } else {
-              // Response was OK, but data is null or message is empty/missing
-              // Treat as no message set
               setInitialMessage('');
               setCurrentMessage('');
           }
@@ -81,7 +68,6 @@ const SystemMessagePanel: React.FC = () => {
     } catch (err) {
       console.error("Fetch system message error:", err);
       setError(err instanceof Error ? err.message : 'Failed to load system message.');
-      // Ensure messages are cleared on error too
       setInitialMessage('');
       setCurrentMessage('');
     } finally {
@@ -89,7 +75,6 @@ const SystemMessagePanel: React.FC = () => {
     }
   }, [currentUser]);
 
-  // useEffect to fetch when isCollapsed becomes false (panel opens)
   useEffect(() => {
     if (!isCollapsed && !hasFetched && !isLoading) { 
       fetchSystemMessage();
@@ -148,10 +133,8 @@ const SystemMessagePanel: React.FC = () => {
 
   const hasChanges = currentMessage !== initialMessage;
 
-  // --- Return structure from Sidebar, rendering panel content inside ---
   return (
     <div className={`bg-stone-200 dark:bg-stone-800 p-4 flex flex-col h-full transition-all duration-300 ease-in-out ${isCollapsed ? 'w-16' : 'w-80'}`}>
-        {/* Collapse Button */}
         <div className="flex items-center justify-end mb-4">
              <button
                 onClick={() => setIsCollapsed(!isCollapsed)}
@@ -162,10 +145,8 @@ const SystemMessagePanel: React.FC = () => {
             </button>
         </div>
 
-        {/* Conditionally render the panel content */}
         {!isCollapsed && (
              <div className="flex-1 overflow-y-auto">
-                 {/* Panel Content Rendered Here */} 
                  <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-0"> {/* Adjusted padding/border maybe */} 
                      {isLoading && <p className="text-gray-600 dark:text-gray-400 p-4">Loading system message...</p>}
                      {!isLoading && (
@@ -204,7 +185,6 @@ const SystemMessagePanel: React.FC = () => {
                  </div> 
              </div>
         )}
-        {/* Collapsed state icon */}
         {isCollapsed && (
              <div className="flex justify-center items-center flex-1" title="System Message Settings">
                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 text-gray-600 dark:text-gray-400">

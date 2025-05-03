@@ -5,10 +5,9 @@ import React, { useState, ChangeEvent, useRef } from 'react';
 interface UploadModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onFileUpload: (file: File) => Promise<void>; // Function to handle the actual upload
+  onFileUpload: (file: File) => Promise<void>; 
 }
 
-// Simple Upload Icon
 const UploadIcon: React.FC<{ className?: string }> = ({ className = "w-8 h-8" }) => (
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
@@ -25,7 +24,6 @@ const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onFileUpload
     setError(null);
     if (event.target.files && event.target.files[0]) {
       const file = event.target.files[0];
-      // Updated validation for Word OR PDF documents
       if (
         file.type === 'application/msword' ||
         file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
@@ -54,12 +52,11 @@ const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onFileUpload
     setError(null);
     try {
       await onFileUpload(selectedFile);
-      // Optionally reset state and close after successful upload
       setSelectedFile(null);
       if (fileInputRef.current) {
-         fileInputRef.current.value = ""; // Reset file input
+         fileInputRef.current.value = ""; 
       }
-      onClose(); // Close modal on success
+      onClose(); 
     } catch (uploadError) {
       console.error("Upload failed:", uploadError);
       setError(uploadError instanceof Error ? uploadError.message : 'Upload failed. Please try again.');
@@ -73,7 +70,7 @@ const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onFileUpload
     setError(null);
     setIsUploading(false);
      if (fileInputRef.current) {
-        fileInputRef.current.value = ""; // Reset file input on close
+        fileInputRef.current.value = ""; 
      }
     onClose();
   };
@@ -83,7 +80,6 @@ const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onFileUpload
   return (
     <div className="fixed inset-0 bg-[rgba(0,0,0,0.2)] z-50 flex justify-center items-center p-4 transition-opacity duration-300 ease-in-out">
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-md relative">
-        {/* Close Button */}
         <button
           onClick={handleClose}
           className="absolute top-3 right-3 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
@@ -96,7 +92,6 @@ const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onFileUpload
 
         <h2 className="text-xl font-semibold mb-4 text-gray-800 dark:text-white">Upload Document</h2>
 
-        {/* Enhanced File Input Area */}
         <div className="mb-4">
           <label 
             htmlFor="file-upload" 
@@ -108,7 +103,6 @@ const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onFileUpload
                   {selectedFile 
                     ? <span className="text-green-600 dark:text-green-400 truncate max-w-[200px]">{selectedFile.name}</span> 
                     : 'Click to select Word or PDF file'}
-                  {/* <span className="text-blue-600 underline">browse</span> */}
                 </span>
             </span>
             {!selectedFile && <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">.doc, .docx, or .pdf only</span>}
@@ -119,18 +113,16 @@ const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onFileUpload
               type="file"
               accept=".doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.pdf,application/pdf"
               onChange={handleFileChange}
-              className="sr-only" // Visually hide the default input
+              className="sr-only"
               disabled={isUploading}
             />
           </label>
         </div>
 
-        {/* Error Message */}
         {error && (
           <p className="text-sm text-red-600 dark:text-red-400 mb-3">{error}</p>
         )}
 
-        {/* Action Buttons */}
         <div className="flex justify-end space-x-3">
           <button
             type="button"

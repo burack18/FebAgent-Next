@@ -4,21 +4,18 @@ import UploadModal from './UploadModal'; // Import the modal component
 import ConfirmModal from './ConfirmModal'; // Import ConfirmModal
 import { fetchWithAuth } from '@/utils/fetchWithAuth'; // Import the wrapper
 
-// Simple SVG Trash Icon Component
 const TrashIcon: React.FC<{ className?: string }> = ({ className = "w-4 h-4" }) => (
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12.576 0a48.108 48.108 0 013.478-.397m7.5 0a.75.75 0 00-.75-.75h-4.5a.75.75 0 00-.75.75M19.5 6l-2.734 12.74a.75.75 0 01-1.43.03L15 6h4.5M4.5 6l2.734 12.74a.75.75 0 001.43.03L9 6H4.5z" />
   </svg>
 );
  
-// Simple Plus Icon for Upload Button
 const PlusIcon: React.FC<{ className?: string }> = ({ className = "w-5 h-5" }) => (
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
   </svg>
 );
 
-// Use environment variable for API base URL
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 interface ConfirmModalState {
@@ -41,7 +38,6 @@ const Sidebar: React.FC = () => {
       docNameToDelete: null,
   });
 
-  // Define fetchDocuments using useCallback to memoize it
   const fetchDocuments = useCallback(async () => {
     if (!API_URL) {
       setError('API URL is not configured.');
@@ -92,7 +88,6 @@ const Sidebar: React.FC = () => {
     });
   };
 
-  // Function to perform the actual deletion after confirmation
   const confirmDelete = async () => {
     if (!confirmModalState.docIdToDelete || !API_URL) return;
 
@@ -122,7 +117,6 @@ const Sidebar: React.FC = () => {
     }
   };
 
-  // Function to handle the actual file upload API call
   const handleFileUpload = async (file: File) => {
     if (!API_URL) {
       throw new Error('API URL not configured.');
@@ -163,7 +157,6 @@ const Sidebar: React.FC = () => {
             className="p-1 rounded hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 cursor-pointer"
             title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
           >
-            {/* Simple Chevron for collapse/expand */}
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={`w-5 h-5 transition-transform duration-300 ${isCollapsed ? 'rotate-180' : 'rotate-0'}`}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
             </svg>
@@ -202,7 +195,6 @@ const Sidebar: React.FC = () => {
             </button>
           )}
 
-          {/* Document List Area */}
           <div className="flex-1 overflow-y-auto pr-1 w-full"> {/* Added slight padding for scrollbar */}
             {!isCollapsed && <h3 className="text-md font-semibold text-gray-700 dark:text-gray-300 mb-2">Documents</h3>}
             
@@ -210,18 +202,16 @@ const Sidebar: React.FC = () => {
             {error && !isCollapsed && <div className="text-red-500 dark:text-red-400 px-2 py-1">Error loading: {error}</div>}
             
             {!isLoading && !error && (
-              <ul className="space-y-1"> {/* Added space between items */}
+              <ul className="space-y-1">
                 {filteredDocuments.map((doc) => (
                   <li key={doc.id} className={`rounded-md ${isCollapsed ? 'flex justify-center items-center w-10 h-10 hover:bg-slate-300 dark:hover:bg-slate-700' : 'hover:bg-slate-200 dark:hover:bg-slate-800'}`}>
                     <div className={`flex items-center justify-between w-full ${isCollapsed ? 'justify-center' : 'p-2'}`}>
                       <a href="#" className={`text-gray-800 dark:text-gray-200 ${isCollapsed ? 'hidden' : 'hover:text-blue-600 dark:hover:text-blue-400 text-sm truncate flex-grow mr-2 cursor-pointer'}`} title={doc.documentName}>
                         {doc.documentName}
                       </a>
-                      {/* Icon when collapsed */}
                       {isCollapsed && (
                         <span title={doc.documentName} className="text-gray-700 dark:text-gray-300 font-bold cursor-pointer">{doc.documentName?.charAt(0).toUpperCase() || 'D'}</span>
                       )}
-                      {/* Delete button - now calls handleDeleteClick */}
                       {!isCollapsed && (
                         <button 
                           onClick={() => handleDeleteClick(doc.id, doc.documentName)} 
@@ -243,20 +233,18 @@ const Sidebar: React.FC = () => {
         </div>
       </div>
 
-      {/* Render the modal */}
       <UploadModal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
         onFileUpload={handleFileUpload}
       />
       
-      {/* Confirmation Modal */}
       <ConfirmModal
         isOpen={confirmModalState.isOpen}
         onClose={() => {
-            if (!isDeleting) { // Prevent closing while delete is in progress
+            if (!isDeleting) { 
               setConfirmModalState({ isOpen: false, docIdToDelete: null, docNameToDelete: null });
-              setError(null); // Clear error when closing manually
+              setError(null); 
             }
         }}
         onConfirm={confirmDelete}
