@@ -101,7 +101,7 @@ const ChatInterface: React.FC = () => {
     const aiSmartMessageId = nextId.current++;
     const aiSmartPlaceholderMessage: Message = { id: aiSmartMessageId, sender: 'ai', text: '', isLoading: true };
     setSmartMessages(prevMessages => [...prevMessages, newUserMessage, aiSmartPlaceholderMessage]);
-
+    let fullText='';
     const response = await fetchWithAuth(`${API_URL}/api/v1/agents/ask-smart-stream`, {
       method: 'POST',
       headers: {
@@ -119,14 +119,15 @@ const ChatInterface: React.FC = () => {
     const reader = response.body.getReader();
     const decoder = new TextDecoder('utf-8');
     let done = false;
-
+    
     while (!done) {
       const { value, done: readerDone } = await reader.read();
       done = readerDone;
-  
+      
       if (value) {
         const chunk = decoder.decode(value, { stream: true });
-        updateSmartdatMessage(aiSmartMessageId,chunk,false)
+        fullText+=chunk;
+        updateSmartdatMessage(aiSmartMessageId,fullText,false)
         console.log(chunk); 
       }
     }
