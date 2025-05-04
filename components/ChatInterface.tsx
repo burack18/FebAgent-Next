@@ -132,7 +132,7 @@ const ChatInterface: React.FC = () => {
         if (chunk.indexOf('PREQUESTIONEND') >= 0) {
           const responseStart=chunk.indexOf('PREQUESTIONEND')+'PREQUESTIONEND'.length;
           fullText = chunk.slice(responseStart);
-          aiProcess = false;
+          aiProcess = false; 
         }
         updateSmartdatMessage(aiSmartMessageId, fullText, false, aiProcess)
       }
