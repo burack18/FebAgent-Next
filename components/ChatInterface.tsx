@@ -20,6 +20,7 @@ interface Message {
   sender: 'user' | 'ai';
   text: string;
   isLoading?: boolean;
+  aiProcess: boolean;
 }
 
 const ChatInterface: React.FC = () => {
@@ -73,35 +74,36 @@ const ChatInterface: React.FC = () => {
       setError(`Response error: ${errorMessage}`);
     }
   }
-  const updateStandartMessage = useCallback((messageId: number, newText: string, isLoading = false) => {
+  const updateStandartMessage = useCallback((messageId: number, newText: string, isLoading = false, aiprocess: boolean = false) => {
     setMessages(prevMessages =>
       prevMessages.map(msg =>
         msg.id === messageId
-          ? { ...msg, text: newText, isLoading: isLoading }
+          ? { ...msg, text: newText, isLoading: isLoading, aiProcess: aiprocess }
           : msg
       )
     );
   }, []);
 
-  const updateSmartdatMessage = useCallback((messageId: number, newText: string, isLoading = false) => {
-    setSmartMessages(prevMessages =>{
+  const updateSmartdatMessage = useCallback((messageId: number, newText: string, isLoading = false, aiProcess: boolean = false) => {
+    setSmartMessages(prevMessages => {
       return prevMessages.map(msg =>
         msg.id === messageId
-          ? { ...msg, text: newText, isLoading: isLoading }
+          ? { ...msg, text: newText, isLoading: isLoading, aiProcess: aiProcess }
           : msg
       )
-  });
+    });
   }, []);
- 
-  const streamEx = async (question:string) => {
+
+  const streamEx = async (question: string) => {
     const requestBody: AskRequest = { question: question, sessionKey: SESSION_KEY, service: service };
     const userMessageId = nextId.current++;
-    const newUserMessage: Message = { id: userMessageId, sender: 'user', text: question };
+    const newUserMessage: Message = { id: userMessageId, sender: 'user', text: question, aiProcess: false };
 
     const aiSmartMessageId = nextId.current++;
-    const aiSmartPlaceholderMessage: Message = { id: aiSmartMessageId, sender: 'ai', text: '', isLoading: true };
+    const aiSmartPlaceholderMessage: Message = { id: aiSmartMessageId, sender: 'ai', text: '', isLoading: true, aiProcess: true };
     setSmartMessages(prevMessages => [...prevMessages, newUserMessage, aiSmartPlaceholderMessage]);
-    let fullText='';
+    let fullText = '';
+    let aiProcess = true;
     const response = await fetchWithAuth(`${API_URL}/api/v1/agents/ask-smart-stream`, {
       method: 'POST',
       headers: {
@@ -110,31 +112,33 @@ const ChatInterface: React.FC = () => {
       },
       body: JSON.stringify(requestBody),
     });
-  
+
     if (!response.ok || !response.body) {
       console.error('Failed to fetch stream');
       return;
     }
-  
+
     const reader = response.body.getReader();
     const decoder = new TextDecoder('utf-8');
     let done = false;
-    
+
     while (!done) {
       const { value, done: readerDone } = await reader.read();
       done = readerDone;
-      
+
       if (value) {
         const chunk = decoder.decode(value, { stream: true });
-        fullText+=chunk;
-        if(chunk.startsWith('PREQUESTIONEND')){
-          fullText=chunk.slice('PREQUESTIONEND'.length);
+        fullText += chunk;
+        if (chunk.indexOf('PREQUESTIONEND') >= 0) {
+          const responseStart=chunk.indexOf('PREQUESTIONEND')+'PREQUESTIONEND'.length;
+          fullText = chunk.slice(responseStart);
+          aiProcess = false;
         }
-        updateSmartdatMessage(aiSmartMessageId,fullText,false)
+        updateSmartdatMessage(aiSmartMessageId, fullText, false, aiProcess)
       }
     }
     setIsSending(false)
-    
+
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -144,18 +148,18 @@ const ChatInterface: React.FC = () => {
 
     setIsSending(true);
     setError(null);
-    setInputValue(''); 
+    setInputValue('');
 
     // fetchSmartResponse(trimmedInput);
     fetchStadartResponse(trimmedInput);
     streamEx(trimmedInput)
   };
-  const fetchSmartResponse = async(question:string)=>{
+  const fetchSmartResponse = async (question: string) => {
     const userMessageId = nextId.current++;
-    const newUserMessage: Message = { id: userMessageId, sender: 'user', text: question };
+    const newUserMessage: Message = { id: userMessageId, sender: 'user', text: question, aiProcess: false };
 
     const aiSmartMessageId = nextId.current++;
-    const aiSmartPlaceholderMessage: Message = { id: aiSmartMessageId, sender: 'ai', text: '', isLoading: true };
+    const aiSmartPlaceholderMessage: Message = { id: aiSmartMessageId, sender: 'ai', text: '', isLoading: true, aiProcess: true };
     setSmartMessages(prevMessages => [...prevMessages, newUserMessage, aiSmartPlaceholderMessage]);
 
     try {
@@ -169,7 +173,7 @@ const ChatInterface: React.FC = () => {
         },
         body: JSON.stringify(requestBody),
       });
-      
+
 
       if (!response.ok) {
         let errorText = `HTTP error! status: ${response.status}`;
@@ -193,11 +197,11 @@ const ChatInterface: React.FC = () => {
     }
 
   }
-  const fetchStadartResponse=async(question:string)=>{
+  const fetchStadartResponse = async (question: string) => {
     const userMessageId = nextId.current++;
-    const newUserMessage: Message = { id: userMessageId, sender: 'user', text: question };
+    const newUserMessage: Message = { id: userMessageId, sender: 'user', text: question, aiProcess: false };
     const aiMessageId = nextId.current++;
-    const aiPlaceholderMessage: Message = { id: aiMessageId, sender: 'ai', text: '', isLoading: true };
+    const aiPlaceholderMessage: Message = { id: aiMessageId, sender: 'ai', text: '', isLoading: true, aiProcess: true };
     setMessages(prevMessages => [...prevMessages, newUserMessage, aiPlaceholderMessage]);
 
     try {
@@ -280,7 +284,7 @@ const ChatInterface: React.FC = () => {
                   const textToRender = msg.text;
 
                   return (
-                    <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+                    <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'} ${msg.aiProcess ? 'opacity-50' : 'opacity-100'}`}>
                       <div className={`max-w-lg px-4 py-2 rounded-lg shadow ${msg.isLoading ? 'animate-pulse bg-gray-400 dark:bg-gray-700' : ''} ${!msg.isLoading && msg.sender === 'user'
                         ? 'bg-blue-500 text-white'
                         : !msg.isLoading && msg.sender === 'ai'
