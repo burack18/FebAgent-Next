@@ -35,7 +35,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const storedToken = localStorage.getItem(TOKEN_STORAGE_KEY);
     const currentUserString = sessionStorage.getItem('currentUser')||'';
 
-    console.log('service',service)
+    
     if (storedToken) {
       try {
         const user: User = JSON.parse(currentUserString) || '{}';

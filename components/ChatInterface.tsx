@@ -129,7 +129,7 @@ const ChatInterface: React.FC = () => {
       if (value) {
         const chunk = decoder.decode(value, { stream: true });
         fullText += chunk;
-        console.log(chunk)
+        
         if (chunk.indexOf('PREQUESTIONEND') >= 0 ) {
           const responseStart = chunk.indexOf('PREQUESTIONEND') + 'PREQUESTIONEND'.length;
           fullText = chunk.slice(responseStart);
