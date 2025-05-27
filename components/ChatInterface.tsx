@@ -245,9 +245,9 @@ const ChatInterface: React.FC = () => {
         </header>
 
         <div className="flex-1 flex items-center justify-center p-4 overflow-hidden">
-          <div className="flex flex-col w-full max-w-3xl h-full bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-            <div className='flex w-full max-w-3xl h-full'>
-              <div className="flex-1 overflow-y-auto p-4 space-y-4 border-r-2">
+          <div className="flex flex-col overflow-y-auto w-full max-w-3xl h-full bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <div className='flex w-full  max-w-3xl h-full'>
+              <div className="flex-1  overflow-y-auto p-4 space-y-4 border-r-2">
                 <h1>Standart</h1>
                 {messages.map((msg) => {
                   const textToRender = msg.text;
@@ -284,7 +284,8 @@ const ChatInterface: React.FC = () => {
                 <div ref={messageEndRef} />
               </div>
 
-              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              
+              <div className="flex-1 overflow-y-auto  p-4 space-y-4">
                 <h1>Smart</h1>
                 {smartMessages.map((msg) => {
                   const textToRender = msg.text;
